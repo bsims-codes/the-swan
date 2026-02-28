@@ -1214,8 +1214,8 @@ function renderScroll() {
     }
 
     // Render rain (stops well before the first GIF/text appears)
-    const rainFadeStart = storyPanel1Y - 500;  // Start fading earlier
-    const rainFadeEnd = storyPanel1Y - 200;  // Fully faded before story panel 1
+    const rainFadeStart = storyPanel1Y - 600;  // Start fading earlier
+    const rainFadeEnd = storyPanel1Y - 300;  // Fully faded 1.5s sooner
     let rainFade = 1;
     if (scrollOffset > rainFadeStart) {
         rainFade = Math.max(0, 1 - (scrollOffset - rainFadeStart) / (rainFadeEnd - rainFadeStart));
