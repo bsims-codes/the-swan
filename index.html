@@ -20,12 +20,13 @@
         }
         #game-container {
             position: relative;
+            overflow: hidden;
         }
         canvas {
             border: 2px solid #333;
             box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
         }
-        #avatar-gif {
+        #avatar-gif, #avatar-gif2 {
             position: absolute;
             left: 40px;
             top: 180px;
@@ -111,6 +112,9 @@
     <div id="game-container">
         <canvas id="game" width="800" height="600"></canvas>
         <img id="avatar-gif" src="Animating_Lost_Guy_Hands_down.gif" alt="Avatar">
+        <img id="avatar-gif2" src="Animating_Lost_Guy_2.gif" alt="Avatar 2">
+        <audio id="rain-sound" src="rain-sound.mp3" loop></audio>
+        <audio id="theme-music" src="theme.mp3" loop></audio>
         <div id="admin-panel">
             <h2>ADMIN SETTINGS</h2>
             <label>COUNTDOWN TIMER (minutes)</label>

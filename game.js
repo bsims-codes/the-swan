@@ -5,6 +5,9 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const avatarGif = document.getElementById('avatar-gif');
+const avatarGif2 = document.getElementById('avatar-gif2');
+const rainSound = document.getElementById('rain-sound');
+const themeMusic = document.getElementById('theme-music');
 const adminPanel = document.getElementById('admin-panel');
 const adminCountdownInput = document.getElementById('admin-countdown');
 const adminKeypadInput = document.getElementById('admin-keypad');
@@ -49,9 +52,8 @@ const STORAGE_KEY = 'hatch_endTime';
 
 // States
 const State = {
-    INTRO: 'INTRO',           // Initial screen with logos
-    SCROLL: 'SCROLL',         // Background scrolling down
-    STORY: 'STORY',           // Avatar and story text
+    INTRO: 'INTRO',           // Initial screen with logos, click to start
+    SCROLL: 'SCROLL',         // One continuous scroll through everything
     RUNNING: 'RUNNING',
     CODE_WINDOW: 'CODE_WINDOW',
     SUCCESS: 'SUCCESS',
@@ -62,10 +64,11 @@ const State = {
 const images = {
     base: null,
     logo: null,
-    logo2: null
+    logo2: null,
+    bottomBg: null
 };
 let imagesLoaded = 0;
-const totalImages = 3;
+const totalImages = 4;
 
 // Game state
 let currentState = State.INTRO;
@@ -75,14 +78,19 @@ let debugMode = false;
 let flickerPhase = 0;
 let flashPhase = 0;
 
-// Intro animation state
-let scrollOffset = 0;           // How much the background has scrolled
-let scrollTarget = 0;           // Target scroll position
-let scrollSpeed = 2;            // Pixels per frame
-let storyAlpha = 0;             // Fade in alpha for story
-let storyTextIndex = 0;         // Current character being typed
-let storyStartTime = 0;         // When story started
-let storyComplete = false;      // Story finished displaying
+// Intro animation state - one continuous Star Wars style scroll
+let scrollOffset = 0;           // Current scroll position
+let totalScrollHeight = 0;      // Total scrollable height
+let scrollSpeed = 0.6;          // Slow scroll speed (Star Wars style)
+let autoScrolling = false;      // Whether auto-scroll is active
+let scrollStartTime = 0;        // When scroll started (for text timing)
+
+// Story panel positions (calculated after images load)
+let storyPanel1Y = 0;           // Y position where story 1 appears in scroll
+let storyPanel2Y = 0;           // Y position where story 2 appears in scroll
+let bottomBgY = 0;              // Y position where bottom bg starts
+const STORY_PANEL_HEIGHT = 600; // Height reserved for each story panel
+const STORY_TEXT_AREA = 400;    // Visible area for story text
 
 // Rain effect
 let rainDrops = [];
@@ -94,20 +102,30 @@ const RAIN_LENGTH_MAX = 30;
 const RAIN_OPACITY = 0.3;
 let lastRainTime = 0;
 
-// DHARMA orientation text (dynamic based on settings)
-function getStoryLines() {
+// Fog effect
+let fogLayers = [];
+const FOG_LAYER_COUNT = 5;
+let lastFogTime = 0;
+
+// DHARMA orientation text (split into two parts for continuous scroll)
+function getStoryLinesPart1() {
     return [
         "Welcome to Station 3: The Swan.",
         "",
+        "You have been selected for a critical",
+        "assignment within the DHARMA Initiative."
+    ];
+}
+
+function getStoryLinesPart2() {
+    return [
         `Every ${settings.countdownMinutes} minutes, you must enter`,
         "the code into the computer.",
         "",
         "4  8  15  16  23  42",
         "",
         "This is your duty. This is your purpose.",
-        "Do not fail.",
-        "",
-        "[Click to begin your shift]"
+        "Do not fail."
     ];
 }
 
@@ -150,12 +168,30 @@ async function loadAllImages() {
     images.base = await loadImage('lost-base.png');
     images.logo = await loadImage('lost-logo.png');
     images.logo2 = await loadImage('lost-logo2.png');
+    images.bottomBg = await loadImage('lost-bottombg.png');
 
-    // Calculate scroll target based on image height
+    // Calculate scroll layout: base image > story1 > story2 > bottom bg
     if (images.base) {
-        // We want to scroll to show the hatch at bottom
-        // The canvas is 600px, the image is taller
-        scrollTarget = images.base.height - CANVAS_HEIGHT;
+        const baseScale = CANVAS_WIDTH / images.base.width;
+        const baseHeight = images.base.height * baseScale;
+
+        // Story panel 1 starts after base image
+        storyPanel1Y = baseHeight;
+
+        // Story panel 2 starts after story panel 1
+        storyPanel2Y = storyPanel1Y + STORY_PANEL_HEIGHT;
+
+        // Bottom background starts after story panel 2
+        bottomBgY = storyPanel2Y + STORY_PANEL_HEIGHT;
+
+        if (images.bottomBg) {
+            const bottomScale = CANVAS_WIDTH / images.bottomBg.width;
+            const bottomHeight = images.bottomBg.height * bottomScale;
+            // Total scroll height
+            totalScrollHeight = bottomBgY + bottomHeight - CANVAS_HEIGHT;
+        } else {
+            totalScrollHeight = bottomBgY;
+        }
     }
 }
 
@@ -585,6 +621,223 @@ function renderRain(fadeAmount = 1) {
 }
 
 // =====================
+// Smoke Monster Effect
+// =====================
+let smokeParticles = [];
+let smokeMonsterActive = false;
+let smokeMonsterX = -100;
+let smokeMonsterY = 150;
+let smokeMonsterVX = 0;
+let smokeMonsterVY = 0;
+let smokeMonsterAlpha = 0;
+let smokeMonsterTimer = 0;
+let smokeMonsterDelay = 3000; // Wait 3 seconds before appearing
+let lastSmokeMonsterTime = 0;
+
+function initSmokeMonster() {
+    smokeParticles = [];
+    smokeMonsterActive = false;
+    smokeMonsterX = -100;
+    smokeMonsterY = 100 + Math.random() * 150;
+    smokeMonsterAlpha = 0;
+    smokeMonsterTimer = performance.now();
+    smokeMonsterDelay = 2000 + Math.random() * 2000;
+    lastSmokeMonsterTime = performance.now();
+}
+
+function updateSmokeMonster() {
+    const now = performance.now();
+    const dt = (now - lastSmokeMonsterTime) / 1000;
+    lastSmokeMonsterTime = now;
+
+    // Wait for delay before activating
+    if (!smokeMonsterActive) {
+        if (now - smokeMonsterTimer > smokeMonsterDelay) {
+            smokeMonsterActive = true;
+            smokeMonsterX = -100;
+            smokeMonsterY = 80 + Math.random() * 120;
+            smokeMonsterVX = 150 + Math.random() * 100;
+            smokeMonsterVY = (Math.random() - 0.5) * 40;
+            smokeMonsterAlpha = 0;
+        }
+        return;
+    }
+
+    // Move smoke monster across screen
+    smokeMonsterX += smokeMonsterVX * dt;
+    smokeMonsterY += smokeMonsterVY * dt;
+
+    // Wavy vertical movement
+    smokeMonsterY += Math.sin(now / 200) * 0.5;
+
+    // Fade in then fade out
+    if (smokeMonsterX < CANVAS_WIDTH * 0.3) {
+        smokeMonsterAlpha = Math.min(0.7, smokeMonsterAlpha + dt * 0.8);
+    } else if (smokeMonsterX > CANVAS_WIDTH * 0.6) {
+        smokeMonsterAlpha = Math.max(0, smokeMonsterAlpha - dt * 0.5);
+    }
+
+    // Spawn trail particles
+    for (let i = 0; i < 3; i++) {
+        smokeParticles.push({
+            x: smokeMonsterX + Math.random() * 60 - 30,
+            y: smokeMonsterY + Math.random() * 40 - 20,
+            vx: -20 - Math.random() * 30,
+            vy: (Math.random() - 0.5) * 20,
+            size: 20 + Math.random() * 40,
+            alpha: smokeMonsterAlpha * (0.3 + Math.random() * 0.4),
+            decay: 0.3 + Math.random() * 0.3
+        });
+    }
+
+    // Update particles
+    for (let i = smokeParticles.length - 1; i >= 0; i--) {
+        const p = smokeParticles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.size += dt * 15;
+        p.alpha -= p.decay * dt;
+
+        if (p.alpha <= 0) {
+            smokeParticles.splice(i, 1);
+        }
+    }
+
+    // Reset when off screen
+    if (smokeMonsterX > CANVAS_WIDTH + 200) {
+        smokeMonsterActive = false;
+        smokeMonsterTimer = now;
+        smokeMonsterDelay = 8000 + Math.random() * 5000; // Wait longer before next appearance
+        smokeParticles = [];
+    }
+}
+
+function renderSmokeMonster() {
+    if (!smokeMonsterActive && smokeParticles.length === 0) return;
+
+    updateSmokeMonster();
+
+    ctx.save();
+
+    // Draw trail particles
+    for (const p of smokeParticles) {
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+        gradient.addColorStop(0, `rgba(10, 10, 10, ${p.alpha})`);
+        gradient.addColorStop(0.4, `rgba(20, 20, 25, ${p.alpha * 0.6})`);
+        gradient.addColorStop(1, `rgba(30, 30, 35, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Draw main smoke body
+    if (smokeMonsterActive && smokeMonsterAlpha > 0) {
+        const gradient = ctx.createRadialGradient(
+            smokeMonsterX, smokeMonsterY, 0,
+            smokeMonsterX, smokeMonsterY, 80
+        );
+        gradient.addColorStop(0, `rgba(5, 5, 8, ${smokeMonsterAlpha})`);
+        gradient.addColorStop(0.5, `rgba(15, 15, 20, ${smokeMonsterAlpha * 0.7})`);
+        gradient.addColorStop(1, `rgba(25, 25, 30, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(smokeMonsterX, smokeMonsterY, 80, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+// =====================
+// Fog Effect
+// =====================
+let fogParticles = [];
+const FOG_PARTICLE_COUNT = 40;
+
+function initFog() {
+    fogLayers = [];
+    fogParticles = [];
+
+    // Create fog particles (soft blobs)
+    for (let i = 0; i < FOG_PARTICLE_COUNT; i++) {
+        fogParticles.push(createFogParticle());
+    }
+    lastFogTime = performance.now();
+}
+
+function createFogParticle() {
+    return {
+        x: Math.random() * (CANVAS_WIDTH + 400) - 200,
+        y: Math.random() * CANVAS_HEIGHT * 0.8,
+        radius: 80 + Math.random() * 150,
+        speed: 5 + Math.random() * 15,
+        opacity: 0.04 + Math.random() * 0.05,
+        phase: Math.random() * Math.PI * 2,
+        phaseSpeed: 0.2 + Math.random() * 0.3,
+        yDrift: (Math.random() - 0.5) * 0.5
+    };
+}
+
+function updateFog() {
+    const now = performance.now();
+    const dt = (now - lastFogTime) / 1000;
+    lastFogTime = now;
+
+    for (const p of fogParticles) {
+        p.x += p.speed * dt;
+        p.y += p.yDrift * dt;
+        p.phase += p.phaseSpeed * dt;
+
+        // Reset when off screen
+        if (p.x > CANVAS_WIDTH + p.radius) {
+            p.x = -p.radius;
+            p.y = Math.random() * CANVAS_HEIGHT * 0.8;
+        }
+    }
+}
+
+function renderFog(fadeAmount = 1) {
+    if (fogParticles.length === 0) return;
+
+    updateFog();
+
+    ctx.save();
+
+    // Draw soft fog blobs using radial gradients
+    for (const p of fogParticles) {
+        const pulse = 0.6 + 0.4 * Math.sin(p.phase);
+        const alpha = p.opacity * fadeAmount * pulse;
+
+        const gradient = ctx.createRadialGradient(
+            p.x, p.y, 0,
+            p.x, p.y, p.radius
+        );
+        gradient.addColorStop(0, `rgba(175, 190, 205, ${alpha})`);
+        gradient.addColorStop(0.4, `rgba(170, 185, 200, ${alpha * 0.6})`);
+        gradient.addColorStop(0.7, `rgba(165, 180, 195, ${alpha * 0.3})`);
+        gradient.addColorStop(1, `rgba(160, 175, 190, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Add overall atmospheric haze
+    const hazeGradient = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+    hazeGradient.addColorStop(0, `rgba(170, 185, 200, ${0.12 * fadeAmount})`);
+    hazeGradient.addColorStop(0.5, `rgba(170, 185, 200, ${0.06 * fadeAmount})`);
+    hazeGradient.addColorStop(1, `rgba(170, 185, 200, 0)`);
+    ctx.fillStyle = hazeGradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.restore();
+}
+
+// =====================
 // Keypad
 // =====================
 function initKeypad() {
@@ -652,6 +905,9 @@ function renderIntro() {
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
+    // Render smoke monster (in sky area)
+    renderSmokeMonster();
+
     // Draw DHARMA logo at top center
     if (images.logo) {
         const logoScale = 0.6;
@@ -672,7 +928,8 @@ function renderIntro() {
         ctx.drawImage(images.logo2, logo2X, logo2Y, logo2Width, logo2Height);
     }
 
-    // Render rain effect
+    // Render fog and rain effects
+    renderFog(1);
     renderRain(1);
 
     // Pulsing "Click to continue" text
@@ -692,32 +949,25 @@ function renderIntro() {
 }
 
 function renderScroll() {
-    // Animate scroll
-    if (scrollOffset < scrollTarget) {
+    // Continuous auto-scroll (Star Wars style)
+    if (autoScrolling && scrollOffset < totalScrollHeight) {
         scrollOffset += scrollSpeed;
-        // Ease out as we approach target
-        if (scrollTarget - scrollOffset < 100) {
-            scrollSpeed = Math.max(1, scrollSpeed * 0.95);
-        }
     }
 
-    if (images.base) {
-        const scale = CANVAS_WIDTH / images.base.width;
+    // Draw the scrolling backgrounds and story panels
+    drawScrollingContent();
 
-        // Clamp scroll offset
-        const maxScroll = images.base.height * scale - CANVAS_HEIGHT;
-        const clampedOffset = Math.min(scrollOffset, maxScroll);
-
-        ctx.drawImage(
-            images.base,
-            0, clampedOffset / scale, images.base.width, CANVAS_HEIGHT / scale,
-            0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
-        );
+    // Render smoke monster in sky (fades out quickly as we scroll)
+    const smokeFadePoint = 300;  // Fade out in first 300 pixels of scroll
+    const smokeFade = Math.max(0, 1 - (scrollOffset / smokeFadePoint));
+    if (smokeFade > 0) {
+        ctx.globalAlpha = smokeFade;
+        renderSmokeMonster();
+        ctx.globalAlpha = 1;
     }
 
     // Fade out logos as we scroll
     const logoFade = Math.max(0, 1 - scrollOffset / 200);
-
     if (logoFade > 0) {
         ctx.globalAlpha = logoFade;
 
@@ -742,100 +992,187 @@ function renderScroll() {
         ctx.globalAlpha = 1;
     }
 
-    // Render rain with fade as we scroll (outdoor to indoor transition)
-    const rainFade = Math.max(0, 1 - (scrollOffset / (scrollTarget * 0.75)));
-    if (rainFade > 0) {
-        renderRain(rainFade);
+    // Render fog and rain with fade as we scroll (outdoor to indoor transition)
+    const weatherFadePoint = storyPanel1Y * 0.8;  // Fade before story panel 1
+    const weatherFade = Math.max(0, 1 - (scrollOffset / weatherFadePoint));
+    if (weatherFade > 0) {
+        renderFog(weatherFade);
+        renderRain(weatherFade);
     }
+
+    // Handle avatar visibility based on scroll position
+    updateAvatarsForScroll();
 
     drawVignette();
 
-    // Check if scroll is complete
-    if (scrollOffset >= scrollTarget - 10) {
-        scrollOffset = scrollTarget;
-        currentState = State.STORY;
-        storyStartTime = Date.now();
-        storyTextIndex = 0;
-        storyAlpha = 0;
+    // Transition to game when scroll is complete
+    if (scrollOffset >= totalScrollHeight) {
+        scrollOffset = totalScrollHeight;
+        startGame();
     }
 }
 
-function renderStory() {
-    // Draw background at final scroll position
+function drawScrollingContent() {
+    // Layout: base image -> story panel 1 -> story panel 2 -> bottom bg
+
     if (images.base) {
         const scale = CANVAS_WIDTH / images.base.width;
-        const maxScroll = images.base.height * scale - CANVAS_HEIGHT;
+        const baseHeight = images.base.height * scale;
 
-        ctx.drawImage(
-            images.base,
-            0, maxScroll / scale, images.base.width, CANVAS_HEIGHT / scale,
-            0, 0, CANVAS_WIDTH, CANVAS_HEIGHT
-        );
-    }
-
-    // Fade in story overlay
-    if (storyAlpha < 0.85) {
-        storyAlpha += 0.01;
-    }
-
-    // Semi-transparent overlay for readability
-    ctx.fillStyle = `rgba(0, 0, 0, ${storyAlpha * 0.7})`;
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-    // Show the animated GIF avatar (full image, no clipping)
-    if (avatarGif) {
-        avatarGif.style.display = 'block';
-        avatarGif.style.opacity = Math.min(1, storyAlpha * 1.5);
-    }
-
-    // Typewriter effect for story text
-    const elapsed = Date.now() - storyStartTime;
-    const charsPerSecond = 30;
-    const totalChars = getStoryLines().join('\n').length;
-    storyTextIndex = Math.min(totalChars, Math.floor(elapsed * charsPerSecond / 1000));
-
-    // Draw story text with typewriter effect
-    ctx.globalAlpha = storyAlpha;
-    ctx.font = '18px "Courier New", monospace';
-    ctx.textAlign = 'left';
-
-    let charCount = 0;
-    let lineY = 200;
-    const textX = 280;
-
-    for (const line of getStoryLines()) {
-        if (charCount >= storyTextIndex) break;
-
-        const charsToShow = Math.min(line.length, storyTextIndex - charCount);
-        const displayText = line.substring(0, charsToShow);
-
-        // Special formatting for the numbers line
-        if (line.includes('4  8  15')) {
-            ctx.fillStyle = '#ff4444';
-            ctx.font = 'bold 20px "Courier New", monospace';
-        } else if (line.includes('[Click')) {
-            ctx.fillStyle = '#888';
-            ctx.font = 'italic 16px "Courier New", monospace';
-        } else {
-            ctx.fillStyle = '#ccc';
-            ctx.font = '18px "Courier New", monospace';
+        // Draw base image scrolling up
+        const baseY = -scrollOffset;
+        if (baseY + baseHeight > 0 && baseY < CANVAS_HEIGHT) {
+            ctx.drawImage(
+                images.base,
+                0, 0, images.base.width, images.base.height,
+                0, baseY, CANVAS_WIDTH, baseHeight
+            );
         }
 
-        ctx.fillText(displayText, textX, lineY);
+        // Draw story panel 1 (black background with text)
+        const panel1Y = storyPanel1Y - scrollOffset;
+        if (panel1Y < CANVAS_HEIGHT && panel1Y + STORY_PANEL_HEIGHT > 0) {
+            drawStoryPanel1(panel1Y);
+        }
 
-        charCount += line.length + 1; // +1 for newline
-        lineY += 28;
+        // Draw story panel 2 (black background with text)
+        const panel2Y = storyPanel2Y - scrollOffset;
+        if (panel2Y < CANVAS_HEIGHT && panel2Y + STORY_PANEL_HEIGHT > 0) {
+            drawStoryPanel2(panel2Y);
+        }
+
+        // Draw bottom background
+        if (images.bottomBg) {
+            const bottomScale = CANVAS_WIDTH / images.bottomBg.width;
+            const bottomHeight = images.bottomBg.height * bottomScale;
+            const bottomY = bottomBgY - scrollOffset;
+
+            if (bottomY < CANVAS_HEIGHT && bottomY + bottomHeight > 0) {
+                ctx.drawImage(
+                    images.bottomBg,
+                    0, 0, images.bottomBg.width, images.bottomBg.height,
+                    0, bottomY, CANVAS_WIDTH, bottomHeight
+                );
+            }
+        }
+    }
+}
+
+function drawStoryPanel1(y) {
+    // Black background for story panel
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, y, CANVAS_WIDTH, STORY_PANEL_HEIGHT);
+
+    // Calculate visibility for fade effect at edges
+    const centerY = y + STORY_PANEL_HEIGHT / 2;
+    const distFromCenter = Math.abs(centerY - CANVAS_HEIGHT / 2);
+    const fadeStart = CANVAS_HEIGHT / 2;
+    const alpha = Math.max(0, 1 - distFromCenter / fadeStart);
+
+    if (alpha <= 0) return;
+
+    ctx.globalAlpha = alpha;
+
+    // Draw story text (Star Wars crawl style)
+    const storyLines = getStoryLinesPart1();
+    ctx.font = '20px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ccc';
+
+    let lineY = y + 200;
+    for (const line of storyLines) {
+        ctx.fillText(line, 500, lineY);
+        lineY += 32;
     }
 
     ctx.globalAlpha = 1;
+}
 
-    // Check if story is complete
-    if (storyTextIndex >= totalChars) {
-        storyComplete = true;
+function drawStoryPanel2(y) {
+    // Black background for story panel
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, y, CANVAS_WIDTH, STORY_PANEL_HEIGHT);
+
+    // Calculate visibility for fade effect at edges
+    const centerY = y + STORY_PANEL_HEIGHT / 2;
+    const distFromCenter = Math.abs(centerY - CANVAS_HEIGHT / 2);
+    const fadeStart = CANVAS_HEIGHT / 2;
+    const alpha = Math.max(0, 1 - distFromCenter / fadeStart);
+
+    if (alpha <= 0) return;
+
+    ctx.globalAlpha = alpha;
+
+    // Draw story text
+    const storyLines = getStoryLinesPart2();
+    ctx.textAlign = 'center';
+
+    let lineY = y + 180;
+    for (const line of storyLines) {
+        if (line.includes('4  8  15')) {
+            ctx.fillStyle = '#ff4444';
+            ctx.font = 'bold 24px "Courier New", monospace';
+        } else {
+            ctx.fillStyle = '#ccc';
+            ctx.font = '20px "Courier New", monospace';
+        }
+        ctx.fillText(line, 500, lineY);
+        lineY += 32;
     }
 
-    drawVignette();
+    ctx.globalAlpha = 1;
 }
+
+function updateAvatarsForScroll() {
+    // Show avatar 1 during story panel 1 visibility
+    const panel1Y = storyPanel1Y - scrollOffset;
+    const panel1Visible = panel1Y < CANVAS_HEIGHT && panel1Y + STORY_PANEL_HEIGHT > 0;
+    const panel1CenterOnScreen = panel1Y > -STORY_PANEL_HEIGHT/2 && panel1Y < CANVAS_HEIGHT;
+
+    // Show avatar 2 during story panel 2 visibility
+    const panel2Y = storyPanel2Y - scrollOffset;
+    const panel2Visible = panel2Y < CANVAS_HEIGHT && panel2Y + STORY_PANEL_HEIGHT > 0;
+    const panel2CenterOnScreen = panel2Y > -STORY_PANEL_HEIGHT/2 && panel2Y < CANVAS_HEIGHT;
+
+    if (panel1CenterOnScreen && !panel2CenterOnScreen) {
+        // Show avatar 1
+        const avatarAlpha = Math.min(1, Math.max(0, 1 - Math.abs(panel1Y + STORY_PANEL_HEIGHT/2 - CANVAS_HEIGHT/2) / 300));
+        if (avatarGif) {
+            avatarGif.style.display = 'block';
+            avatarGif.style.opacity = avatarAlpha;
+            avatarGif.style.top = Math.max(100, Math.min(300, panel1Y + 150)) + 'px';
+        }
+        if (avatarGif2) {
+            avatarGif2.style.display = 'none';
+        }
+    } else if (panel2CenterOnScreen) {
+        // Show avatar 2
+        const avatarAlpha = Math.min(1, Math.max(0, 1 - Math.abs(panel2Y + STORY_PANEL_HEIGHT/2 - CANVAS_HEIGHT/2) / 300));
+        if (avatarGif) {
+            avatarGif.style.display = 'none';
+        }
+        if (avatarGif2) {
+            avatarGif2.style.display = 'block';
+            avatarGif2.style.opacity = avatarAlpha;
+            avatarGif2.style.top = Math.max(100, Math.min(300, panel2Y + 150)) + 'px';
+        }
+    } else {
+        // Hide both avatars
+        if (avatarGif) {
+            avatarGif.style.display = 'none';
+        }
+        if (avatarGif2) {
+            avatarGif2.style.display = 'none';
+        }
+    }
+
+    // Start theme music when entering story panels, fade rain
+    if ((panel1CenterOnScreen || panel2CenterOnScreen) && rainSound && !rainSound.paused) {
+        fadeOutRainSound();
+        playThemeMusic();
+    }
+}
+
 
 function renderRunning(remainingMs) {
     // Dark background
@@ -1083,8 +1420,7 @@ function renderDebug(remainingMs) {
 // =====================
 function update() {
     if (currentState === State.INTRO || currentState === State.SCROLL ||
-        currentState === State.STORY || currentState === State.SUCCESS ||
-        currentState === State.FAIL) {
+        currentState === State.SUCCESS || currentState === State.FAIL) {
         return 0;
     }
 
@@ -1119,9 +1455,6 @@ function render() {
         case State.SCROLL:
             renderScroll();
             break;
-        case State.STORY:
-            renderStory();
-            break;
         case State.RUNNING:
             renderRunning(remainingMs);
             break;
@@ -1153,21 +1486,19 @@ function handleClick(event) {
     const y = event.clientY - rect.top;
 
     if (currentState === State.INTRO) {
-        // Click anywhere to start scrolling
+        // Start rain sound on first click (browsers require user interaction for audio)
+        playRainSound();
+        // Click anywhere to start continuous scroll
         currentState = State.SCROLL;
-        scrollSpeed = 3;
+        autoScrolling = true;
+        scrollStartTime = Date.now();
     } else if (currentState === State.SCROLL) {
-        // Click to speed up scroll
-        scrollSpeed = Math.min(scrollSpeed + 2, 10);
-    } else if (currentState === State.STORY) {
-        if (storyComplete) {
-            // Start the game
-            startGame();
-        } else {
-            // Click to skip typewriter and show all text
-            storyTextIndex = getStoryLines().join('\n').length;
-            storyComplete = true;
-        }
+        // Click to speed up scroll temporarily
+        scrollSpeed = Math.min(scrollSpeed + 0.5, 3);
+        // Reset speed after a moment
+        setTimeout(() => {
+            scrollSpeed = 0.6;
+        }, 500);
     } else if (currentState === State.CODE_WINDOW) {
         for (const btn of keypadButtons) {
             if (isInside(x, y, btn)) {
@@ -1236,6 +1567,14 @@ function handleKeydown(event) {
         return;
     }
 
+    // Spacebar acts as click to continue (except in CODE_WINDOW where it adds spaces)
+    if (event.key === ' ' && currentState !== State.CODE_WINDOW) {
+        event.preventDefault();
+        // Simulate a click in the center of the canvas
+        handleClick({ clientX: canvas.offsetLeft + CANVAS_WIDTH / 2, clientY: canvas.offsetTop + CANVAS_HEIGHT / 2 });
+        return;
+    }
+
     if (currentState === State.CODE_WINDOW) {
         if (event.key >= '0' && event.key <= '9') {
             handleKeypadInput(event.key);
@@ -1287,6 +1626,61 @@ function hideAvatarGif() {
         avatarGif.style.display = 'none';
         avatarGif.style.opacity = 0;
     }
+    if (avatarGif2) {
+        avatarGif2.style.display = 'none';
+        avatarGif2.style.opacity = 0;
+    }
+}
+
+// Audio control functions
+function playRainSound() {
+    if (rainSound) {
+        rainSound.volume = 0.5;
+        rainSound.play().catch(() => {});  // Ignore autoplay errors
+    }
+}
+
+function stopRainSound() {
+    if (rainSound) {
+        rainSound.pause();
+        rainSound.currentTime = 0;
+    }
+}
+
+function fadeOutRainSound() {
+    if (rainSound && !rainSound.paused) {
+        let vol = rainSound.volume;
+        const fadeInterval = setInterval(() => {
+            vol -= 0.05;
+            if (vol <= 0) {
+                rainSound.volume = 0;
+                rainSound.pause();
+                rainSound.currentTime = 0;
+                clearInterval(fadeInterval);
+            } else {
+                rainSound.volume = vol;
+            }
+        }, 100);
+    }
+}
+
+function playThemeMusic() {
+    if (themeMusic) {
+        themeMusic.volume = 0.4;
+        themeMusic.play().catch(() => {});
+    }
+}
+
+function stopThemeMusic() {
+    if (themeMusic) {
+        themeMusic.pause();
+        themeMusic.currentTime = 0;
+    }
+}
+
+function stopAllAudio() {
+    stopRainSound();
+    stopThemeMusic();
 }
 
 function startGame() {
@@ -1305,6 +1699,7 @@ function startGame() {
 
 function resetGame() {
     hideAvatarGif();
+    stopAllAudio();
     localStorage.removeItem(STORAGE_KEY);
     endTime = null;
     currentState = State.INTRO;
@@ -1312,15 +1707,16 @@ function resetGame() {
     flickerPhase = 0;
     flashPhase = 0;
 
-    // Reset intro animation state
+    // Reset continuous scroll state
     scrollOffset = 0;
-    scrollSpeed = 3;
-    storyAlpha = 0;
-    storyTextIndex = 0;
-    storyComplete = false;
+    scrollSpeed = 0.6;
+    autoScrolling = false;
+    scrollStartTime = 0;
 
-    // Reinitialize rain
+    // Reinitialize rain, fog, and smoke monster
     initRain();
+    initFog();
+    initSmokeMonster();
 
     // Reset flip digits
     const initStr = getInitStr();
@@ -1333,6 +1729,8 @@ function init() {
     initKeypad();
     hideAvatarGif();
     initRain();
+    initFog();
+    initSmokeMonster();
 
     // Load images first
     loadAllImages();
