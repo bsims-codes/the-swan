@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Hatch - 108 Minutes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+        }
+        canvas {
+            border: 2px solid #333;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+        }
+        #avatar-gif {
+            position: absolute;
+            left: 80px;
+            top: 225px;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 3px solid #888;
+            object-fit: cover;
+            display: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game" width="800" height="600"></canvas>
+        <img id="avatar-gif" src="Animating_Lost_Guy_Hands_down.gif" alt="Avatar">
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
