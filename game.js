@@ -1413,11 +1413,6 @@ function renderCodeWindow(remainingMs) {
     ctx.fillText(enteredCode || '_', 55, 285);
     ctx.textAlign = 'center';
 
-    // The numbers hint
-    ctx.fillStyle = '#666';
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillText('4  8  15  16  23  42', 220, 330);
-
     // Instructions
     ctx.fillStyle = '#555';
     ctx.font = '12px "Courier New", monospace';
