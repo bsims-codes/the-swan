@@ -807,23 +807,23 @@ function renderRain(fadeAmount = 1) {
 // =====================
 let smokeParticles = [];
 let smokeMonsterActive = false;
-let smokeMonsterX = -100;
+let smokeMonsterX = -200;
 let smokeMonsterY = 150;
 let smokeMonsterVX = 0;
 let smokeMonsterVY = 0;
 let smokeMonsterAlpha = 0;
 let smokeMonsterTimer = 0;
-let smokeMonsterDelay = 3000; // Wait 3 seconds before appearing
+let smokeMonsterDelay = 500; // Short delay before appearing
 let lastSmokeMonsterTime = 0;
 
 function initSmokeMonster() {
     smokeParticles = [];
     smokeMonsterActive = false;
-    smokeMonsterX = -100;
-    smokeMonsterY = 100 + Math.random() * 150;
+    smokeMonsterX = -200;
+    smokeMonsterY = 120;
     smokeMonsterAlpha = 0;
     smokeMonsterTimer = performance.now();
-    smokeMonsterDelay = 2000 + Math.random() * 2000;
+    smokeMonsterDelay = 500;  // Appear quickly
     lastSmokeMonsterTime = performance.now();
 }
 
@@ -836,10 +836,10 @@ function updateSmokeMonster() {
     if (!smokeMonsterActive) {
         if (now - smokeMonsterTimer > smokeMonsterDelay) {
             smokeMonsterActive = true;
-            smokeMonsterX = -100;
-            smokeMonsterY = 80 + Math.random() * 120;
-            smokeMonsterVX = 150 + Math.random() * 100;
-            smokeMonsterVY = (Math.random() - 0.5) * 40;
+            smokeMonsterX = -200;
+            smokeMonsterY = 100 + Math.random() * 80;  // Just above trees
+            smokeMonsterVX = 120 + Math.random() * 60;  // Moderate speed
+            smokeMonsterVY = (Math.random() - 0.5) * 20;
             smokeMonsterAlpha = 0;
         }
         return;
@@ -850,25 +850,25 @@ function updateSmokeMonster() {
     smokeMonsterY += smokeMonsterVY * dt;
 
     // Wavy vertical movement
-    smokeMonsterY += Math.sin(now / 200) * 0.5;
+    smokeMonsterY += Math.sin(now / 150) * 1.5;
 
-    // Fade in then fade out (more visible)
-    if (smokeMonsterX < CANVAS_WIDTH * 0.3) {
-        smokeMonsterAlpha = Math.min(0.85, smokeMonsterAlpha + dt * 1.2);
-    } else if (smokeMonsterX > CANVAS_WIDTH * 0.6) {
-        smokeMonsterAlpha = Math.max(0, smokeMonsterAlpha - dt * 0.4);
+    // Fade in quickly, stay visible, fade out at end
+    if (smokeMonsterX < CANVAS_WIDTH * 0.2) {
+        smokeMonsterAlpha = Math.min(1, smokeMonsterAlpha + dt * 2);
+    } else if (smokeMonsterX > CANVAS_WIDTH * 0.75) {
+        smokeMonsterAlpha = Math.max(0, smokeMonsterAlpha - dt * 1.5);
     }
 
-    // Spawn trail particles
-    for (let i = 0; i < 3; i++) {
+    // Spawn many dark trail particles
+    for (let i = 0; i < 8; i++) {
         smokeParticles.push({
-            x: smokeMonsterX + Math.random() * 60 - 30,
-            y: smokeMonsterY + Math.random() * 40 - 20,
-            vx: -20 - Math.random() * 30,
-            vy: (Math.random() - 0.5) * 20,
-            size: 20 + Math.random() * 40,
-            alpha: smokeMonsterAlpha * (0.3 + Math.random() * 0.4),
-            decay: 0.3 + Math.random() * 0.3
+            x: smokeMonsterX + Math.random() * 100 - 50,
+            y: smokeMonsterY + Math.random() * 60 - 30,
+            vx: -40 - Math.random() * 60,
+            vy: (Math.random() - 0.5) * 30,
+            size: 30 + Math.random() * 70,
+            alpha: smokeMonsterAlpha * (0.5 + Math.random() * 0.5),
+            decay: 0.2 + Math.random() * 0.2
         });
     }
 
@@ -877,7 +877,7 @@ function updateSmokeMonster() {
         const p = smokeParticles[i];
         p.x += p.vx * dt;
         p.y += p.vy * dt;
-        p.size += dt * 15;
+        p.size += dt * 25;
         p.alpha -= p.decay * dt;
 
         if (p.alpha <= 0) {
@@ -886,10 +886,10 @@ function updateSmokeMonster() {
     }
 
     // Reset when off screen
-    if (smokeMonsterX > CANVAS_WIDTH + 200) {
+    if (smokeMonsterX > CANVAS_WIDTH + 300) {
         smokeMonsterActive = false;
         smokeMonsterTimer = now;
-        smokeMonsterDelay = 3000 + Math.random() * 3000; // Can reappear during scroll
+        smokeMonsterDelay = 2000 + Math.random() * 2000;
         smokeParticles = [];
     }
 }
@@ -901,12 +901,13 @@ function renderSmokeMonster() {
 
     ctx.save();
 
-    // Draw trail particles
+    // Draw dark trail particles
     for (const p of smokeParticles) {
         const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-        gradient.addColorStop(0, `rgba(10, 10, 10, ${p.alpha})`);
-        gradient.addColorStop(0.4, `rgba(20, 20, 25, ${p.alpha * 0.6})`);
-        gradient.addColorStop(1, `rgba(30, 30, 35, 0)`);
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${p.alpha})`);
+        gradient.addColorStop(0.3, `rgba(5, 5, 10, ${p.alpha * 0.8})`);
+        gradient.addColorStop(0.6, `rgba(10, 10, 15, ${p.alpha * 0.4})`);
+        gradient.addColorStop(1, `rgba(15, 15, 20, 0)`);
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -914,19 +915,35 @@ function renderSmokeMonster() {
         ctx.fill();
     }
 
-    // Draw main smoke body
+    // Draw main smoke body - large dark mass
     if (smokeMonsterActive && smokeMonsterAlpha > 0) {
-        const gradient = ctx.createRadialGradient(
+        // Core - very dark
+        const coreGradient = ctx.createRadialGradient(
             smokeMonsterX, smokeMonsterY, 0,
-            smokeMonsterX, smokeMonsterY, 80
+            smokeMonsterX, smokeMonsterY, 120
         );
-        gradient.addColorStop(0, `rgba(5, 5, 8, ${smokeMonsterAlpha})`);
-        gradient.addColorStop(0.5, `rgba(15, 15, 20, ${smokeMonsterAlpha * 0.7})`);
-        gradient.addColorStop(1, `rgba(25, 25, 30, 0)`);
+        coreGradient.addColorStop(0, `rgba(0, 0, 0, ${smokeMonsterAlpha})`);
+        coreGradient.addColorStop(0.4, `rgba(5, 5, 8, ${smokeMonsterAlpha * 0.9})`);
+        coreGradient.addColorStop(0.7, `rgba(10, 10, 15, ${smokeMonsterAlpha * 0.5})`);
+        coreGradient.addColorStop(1, `rgba(15, 15, 20, 0)`);
 
-        ctx.fillStyle = gradient;
+        ctx.fillStyle = coreGradient;
         ctx.beginPath();
-        ctx.arc(smokeMonsterX, smokeMonsterY, 80, 0, Math.PI * 2);
+        ctx.arc(smokeMonsterX, smokeMonsterY, 120, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Secondary mass for more volume
+        const secondGradient = ctx.createRadialGradient(
+            smokeMonsterX - 40, smokeMonsterY + 20, 0,
+            smokeMonsterX - 40, smokeMonsterY + 20, 80
+        );
+        secondGradient.addColorStop(0, `rgba(0, 0, 0, ${smokeMonsterAlpha * 0.8})`);
+        secondGradient.addColorStop(0.5, `rgba(8, 8, 12, ${smokeMonsterAlpha * 0.5})`);
+        secondGradient.addColorStop(1, `rgba(15, 15, 20, 0)`);
+
+        ctx.fillStyle = secondGradient;
+        ctx.beginPath();
+        ctx.arc(smokeMonsterX - 40, smokeMonsterY + 20, 80, 0, Math.PI * 2);
         ctx.fill();
     }
 
@@ -1190,9 +1207,9 @@ function renderScroll() {
         renderFog(fogFade);
     }
 
-    // Render rain (stops when entering the hatch / story panels)
-    const rainFadeStart = storyPanel1Y - 200;  // Start fading before story panel 1
-    const rainFadeEnd = storyPanel1Y;  // Fully faded by story panel 1
+    // Render rain (stops well before the first GIF/text appears)
+    const rainFadeStart = storyPanel1Y - 500;  // Start fading earlier
+    const rainFadeEnd = storyPanel1Y - 200;  // Fully faded before story panel 1
     let rainFade = 1;
     if (scrollOffset > rainFadeStart) {
         rainFade = Math.max(0, 1 - (scrollOffset - rainFadeStart) / (rainFadeEnd - rainFadeStart));
@@ -1264,17 +1281,7 @@ function drawStoryPanel1(y) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, y, CANVAS_WIDTH, STORY_PANEL_HEIGHT);
 
-    // Calculate visibility for fade effect at edges
-    const centerY = y + STORY_PANEL_HEIGHT / 2;
-    const distFromCenter = Math.abs(centerY - CANVAS_HEIGHT / 2);
-    const fadeStart = CANVAS_HEIGHT / 2;
-    const alpha = Math.max(0, 1 - distFromCenter / fadeStart);
-
-    if (alpha <= 0) return;
-
-    ctx.globalAlpha = alpha;
-
-    // Draw story text (Star Wars crawl style)
+    // Draw story text (full visibility, no fade)
     const storyLines = getStoryLinesPart1();
     ctx.font = '20px "Courier New", monospace';
     ctx.textAlign = 'center';
@@ -1285,8 +1292,6 @@ function drawStoryPanel1(y) {
         ctx.fillText(line, 500, lineY);
         lineY += 32;
     }
-
-    ctx.globalAlpha = 1;
 }
 
 function drawStoryPanel2(y) {
@@ -1294,17 +1299,7 @@ function drawStoryPanel2(y) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, y, CANVAS_WIDTH, STORY_PANEL_HEIGHT);
 
-    // Calculate visibility for fade effect at edges
-    const centerY = y + STORY_PANEL_HEIGHT / 2;
-    const distFromCenter = Math.abs(centerY - CANVAS_HEIGHT / 2);
-    const fadeStart = CANVAS_HEIGHT / 2;
-    const alpha = Math.max(0, 1 - distFromCenter / fadeStart);
-
-    if (alpha <= 0) return;
-
-    ctx.globalAlpha = alpha;
-
-    // Draw story text
+    // Draw story text (full visibility, no fade)
     const storyLines = getStoryLinesPart2();
     ctx.textAlign = 'center';
 
@@ -1320,8 +1315,6 @@ function drawStoryPanel2(y) {
         ctx.fillText(line, 500, lineY);
         lineY += 32;
     }
-
-    ctx.globalAlpha = 1;
 }
 
 function updateAvatarsForScroll() {
