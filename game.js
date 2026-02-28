@@ -133,12 +133,12 @@ function getStoryLinesPart2() {
 const startButton = { x: 325, y: 400, width: 150, height: 50 };
 const restartButton = { x: 325, y: 450, width: 150, height: 50 };
 
-// Keypad layout
+// Keypad layout (positioned on right side of screen)
 const keypadButtons = [];
-const keypadStartX = 500;
-const keypadStartY = 200;
-const keyButtonSize = 60;
-const keyButtonGap = 10;
+const keypadStartX = 480;
+const keypadStartY = 220;
+const keyButtonSize = 55;
+const keyButtonGap = 8;
 
 // Flip clock configuration
 const TILE_WIDTH = 110;
@@ -531,6 +531,160 @@ function drawCountdown(remainingMs) {
         const x = startX + minutesWidth + colonWidth + i * (TILE_WIDTH + TILE_GAP);
         drawFlipDigit(flipDigits[3 + i], x, startY);
     }
+}
+
+// Wall-mounted clock for the hatch interior
+const WALL_TILE_WIDTH = 70;
+const WALL_TILE_HEIGHT = 95;
+const WALL_TILE_GAP = 8;
+
+function drawWallClock(remainingMs) {
+    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    const minStr = String(minutes).padStart(3, '0');
+    const secStr = String(seconds).padStart(2, '0');
+    const timeStr = minStr + secStr;
+
+    // Update flip digits
+    for (let i = 0; i < 5; i++) {
+        flipDigits[i].setChar(timeStr[i]);
+    }
+
+    // Layout calculations for wall clock (smaller, centered above computer)
+    const colonWidth = 25;
+    const minutesWidth = 3 * WALL_TILE_WIDTH + 2 * WALL_TILE_GAP;
+    const secondsWidth = 2 * WALL_TILE_WIDTH + WALL_TILE_GAP;
+    const totalWidth = minutesWidth + colonWidth + secondsWidth;
+    const startX = (CANVAS_WIDTH - totalWidth) / 2;
+    const startY = 60;  // Position on the wall above computer
+
+    // Draw clock housing/frame (industrial look)
+    const frameX = startX - 20;
+    const frameY = startY - 15;
+    const frameW = totalWidth + 40;
+    const frameH = WALL_TILE_HEIGHT + 30;
+
+    // Outer housing
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(frameX - 5, frameY - 5, frameW + 10, frameH + 10);
+
+    // Inner housing with gradient
+    const housingGradient = ctx.createLinearGradient(frameX, frameY, frameX, frameY + frameH);
+    housingGradient.addColorStop(0, '#3d3d3d');
+    housingGradient.addColorStop(0.5, '#2d2d2d');
+    housingGradient.addColorStop(1, '#1d1d1d');
+    ctx.fillStyle = housingGradient;
+    ctx.fillRect(frameX, frameY, frameW, frameH);
+
+    // Mounting bolts
+    ctx.fillStyle = '#555';
+    const boltSize = 8;
+    ctx.beginPath();
+    ctx.arc(frameX + 12, frameY + 12, boltSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(frameX + frameW - 12, frameY + 12, boltSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw minute digits (scaled)
+    for (let i = 0; i < 3; i++) {
+        const x = startX + i * (WALL_TILE_WIDTH + WALL_TILE_GAP);
+        drawWallFlipDigit(flipDigits[i], x, startY);
+    }
+
+    // Draw colon
+    const colonX = startX + minutesWidth + colonWidth / 2;
+    drawWallColon(colonX, startY);
+
+    // Draw second digits
+    for (let i = 0; i < 2; i++) {
+        const x = startX + minutesWidth + colonWidth + i * (WALL_TILE_WIDTH + WALL_TILE_GAP);
+        drawWallFlipDigit(flipDigits[3 + i], x, startY);
+    }
+
+    // Add subtle red glow when time is low
+    const timeRatio = remainingMs / getTotalTimeMs();
+    if (timeRatio < 0.25) {
+        const glowIntensity = timeRatio < 0.1 ? 0.4 : 0.2;
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 30 * (1 - timeRatio * 4);
+        ctx.strokeStyle = `rgba(255, 0, 0, ${glowIntensity})`;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(frameX - 2, frameY - 2, frameW + 4, frameH + 4);
+        ctx.shadowBlur = 0;
+    }
+}
+
+function drawWallFlipDigit(digit, x, y) {
+    const w = WALL_TILE_WIDTH;
+    const h = WALL_TILE_HEIGHT;
+    const halfH = h / 2;
+    const seamY = y + halfH;
+
+    digit.update();
+    const t = digit.getProgress();
+
+    // Draw tile background
+    const gradient = ctx.createLinearGradient(x, y, x, y + h);
+    gradient.addColorStop(0, '#3a3a3a');
+    gradient.addColorStop(0.02, '#2d2d2d');
+    gradient.addColorStop(0.5, '#252525');
+    gradient.addColorStop(0.98, '#1a1a1a');
+    gradient.addColorStop(1, '#0f0f0f');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, w, h);
+
+    // Bevel
+    ctx.strokeStyle = '#4a4a4a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#0a0a0a';
+    ctx.beginPath();
+    ctx.moveTo(x + w, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.stroke();
+
+    // Seam line
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(x, seamY - 1, w, 2);
+
+    // Draw character
+    const char = digit.isFlipping && t >= 0.5 ? digit.nextChar : digit.currentChar;
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = `bold ${Math.floor(h * 0.7)}px "Arial Black", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(char, x + w / 2, y + h / 2);
+    ctx.shadowBlur = 0;
+}
+
+function drawWallColon(x, y) {
+    const dotSize = 8;
+    const spacing = WALL_TILE_HEIGHT * 0.25;
+
+    ctx.fillStyle = '#888';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 2;
+
+    ctx.beginPath();
+    ctx.arc(x, y + WALL_TILE_HEIGHT / 2 - spacing, dotSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x, y + WALL_TILE_HEIGHT / 2 + spacing, dotSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
 }
 
 // =====================
@@ -992,12 +1146,22 @@ function renderScroll() {
         ctx.globalAlpha = 1;
     }
 
-    // Render fog and rain with fade as we scroll (outdoor to indoor transition)
-    const weatherFadePoint = storyPanel1Y * 0.8;  // Fade before story panel 1
-    const weatherFade = Math.max(0, 1 - (scrollOffset / weatherFadePoint));
-    if (weatherFade > 0) {
-        renderFog(weatherFade);
-        renderRain(weatherFade);
+    // Render fog (fades before story panels)
+    const fogFadePoint = storyPanel1Y * 0.8;
+    const fogFade = Math.max(0, 1 - (scrollOffset / fogFadePoint));
+    if (fogFade > 0) {
+        renderFog(fogFade);
+    }
+
+    // Render rain (continues through story panels, fades near bottom bg)
+    const rainFadeStart = storyPanel2Y + STORY_PANEL_HEIGHT * 0.5;  // Start fading halfway through panel 2
+    const rainFadeEnd = bottomBgY;  // Fully faded by bottom bg
+    let rainFade = 1;
+    if (scrollOffset > rainFadeStart) {
+        rainFade = Math.max(0, 1 - (scrollOffset - rainFadeStart) / (rainFadeEnd - rainFadeStart));
+    }
+    if (rainFade > 0) {
+        renderRain(rainFade);
     }
 
     // Handle avatar visibility based on scroll position
@@ -1175,105 +1339,97 @@ function updateAvatarsForScroll() {
 
 
 function renderRunning(remainingMs) {
-    // Dark background
-    ctx.fillStyle = '#0c0c0c';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Draw the hatch interior background
+    if (images.bottomBg) {
+        const scale = CANVAS_WIDTH / images.bottomBg.width;
+        const height = images.bottomBg.height * scale;
+        ctx.drawImage(images.bottomBg, 0, 0, CANVAS_WIDTH, height);
+    } else {
+        ctx.fillStyle = '#0c0c0c';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 
-    // Warning header
-    const timeRatio = remainingMs / getTotalTimeMs();
-    let headerColor = '#666';
-    if (timeRatio < 0.1) headerColor = '#aa4444';
-    else if (timeRatio < 0.25) headerColor = '#886644';
-
-    ctx.fillStyle = headerColor;
-    ctx.font = 'bold 28px "Arial", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('SYSTEM COUNTDOWN', CANVAS_WIDTH / 2, 100);
-
-    // Draw the flip clock countdown
-    drawCountdown(remainingMs);
-
-    // Status text
-    ctx.fillStyle = '#555';
-    ctx.font = '18px "Arial", sans-serif';
-    ctx.fillText('EXECUTE PROTOCOL', CANVAS_WIDTH / 2, 380);
+    // Draw the flip clock countdown on the wall (above computer)
+    drawWallClock(remainingMs);
 
     // Warning if getting close to code window
     if (remainingMs <= getCodeWindowMs() + 60000 && remainingMs > getCodeWindowMs()) {
         flickerPhase += 0.1;
         const alpha = 0.5 + Math.sin(flickerPhase) * 0.3;
         ctx.fillStyle = `rgba(255, 100, 0, ${alpha})`;
-        ctx.font = 'bold 22px "Arial", sans-serif';
-        ctx.fillText('PREPARE TO ENTER THE NUMBERS', CANVAS_WIDTH / 2, 430);
+        ctx.font = 'bold 20px "Arial", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 10;
+        ctx.fillText('PREPARE TO ENTER THE NUMBERS', CANVAS_WIDTH / 2, 550);
+        ctx.shadowBlur = 0;
     }
 
     drawVignette();
-    drawNoise(0.02);
+    drawNoise(0.015);
 }
 
 function renderCodeWindow(remainingMs) {
-    // Urgent dark background
-    ctx.fillStyle = '#0a0505';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Draw the hatch interior background
+    if (images.bottomBg) {
+        const scale = CANVAS_WIDTH / images.bottomBg.width;
+        const height = images.bottomBg.height * scale;
+        ctx.drawImage(images.bottomBg, 0, 0, CANVAS_WIDTH, height);
+    } else {
+        ctx.fillStyle = '#0a0505';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+
+    // Draw wall clock (will show urgency with red glow)
+    drawWallClock(remainingMs);
 
     // Flashing warning border
     flickerPhase += 0.15;
     const borderAlpha = 0.3 + Math.sin(flickerPhase) * 0.2;
     ctx.strokeStyle = `rgba(200, 50, 50, ${borderAlpha})`;
-    ctx.lineWidth = 8;
-    ctx.strokeRect(4, 4, CANVAS_WIDTH - 8, CANVAS_HEIGHT - 8);
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, CANVAS_WIDTH - 6, CANVAS_HEIGHT - 6);
 
-    // Draw smaller countdown at top-left area
-    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const timeStr = `${String(minutes).padStart(3, '0')}:${String(seconds).padStart(2, '0')}`;
-
-    // Update flip digits
-    const minStr = String(minutes).padStart(3, '0');
-    const secStr = String(seconds).padStart(2, '0');
-    const fullTimeStr = minStr + secStr;
-    for (let i = 0; i < 5; i++) {
-        flipDigits[i].setChar(fullTimeStr[i]);
-        flipDigits[i].update();
-    }
-
-    // Draw time display (simplified for code window)
-    ctx.fillStyle = '#cc0000';
-    ctx.font = 'bold 64px "Arial Black", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.shadowColor = '#ff0000';
-    ctx.shadowBlur = 20;
-    ctx.fillText(timeStr, 220, 110);
-    ctx.shadowBlur = 0;
+    // Terminal overlay area (semi-transparent to see background)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(30, 200, 380, 180);
+    ctx.strokeStyle = '#aa3333';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(30, 200, 380, 180);
 
     // Warning text
     ctx.fillStyle = '#ff4444';
-    ctx.font = 'bold 26px "Arial", sans-serif';
-    ctx.fillText('ENTER THE NUMBERS', 220, 165);
+    ctx.font = 'bold 22px "Arial", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ENTER THE NUMBERS', 220, 230);
 
     // Code display area
-    ctx.fillStyle = '#111';
-    ctx.fillRect(40, 200, 360, 55);
-    ctx.strokeStyle = '#aa3333';
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(45, 250, 350, 50);
+    ctx.strokeStyle = '#00aa00';
     ctx.lineWidth = 2;
-    ctx.strokeRect(40, 200, 360, 55);
+    ctx.strokeRect(45, 250, 350, 50);
 
     // Entered code
     ctx.fillStyle = '#00dd00';
-    ctx.font = 'bold 30px "Courier New", monospace';
+    ctx.font = 'bold 28px "Courier New", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(enteredCode || '_', 55, 238);
+    ctx.fillText(enteredCode || '_', 55, 285);
     ctx.textAlign = 'center';
 
     // The numbers hint
-    ctx.fillStyle = '#555';
-    ctx.font = '16px "Courier New", monospace';
-    ctx.fillText('4  8  15  16  23  42', 220, 295);
+    ctx.fillStyle = '#666';
+    ctx.font = '14px "Courier New", monospace';
+    ctx.fillText('4  8  15  16  23  42', 220, 330);
 
-    // Keypad
+    // Instructions
+    ctx.fillStyle = '#555';
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillText('Type numbers or use keypad | Enter = submit', 220, 365);
+
+    // Keypad (repositioned)
     for (const btn of keypadButtons) {
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = 'rgba(26, 26, 26, 0.9)';
         ctx.fillRect(btn.x, btn.y, btn.width, btn.height);
 
         ctx.strokeStyle = '#555';
@@ -1295,51 +1451,58 @@ function renderCodeWindow(remainingMs) {
         ctx.fillText(label, btn.x + btn.width / 2, btn.y + btn.height / 2 + 6);
     }
 
-    // Instructions
-    ctx.fillStyle = '#666';
-    ctx.font = '13px "Courier New", monospace';
-    ctx.fillText('Click or use keyboard', 220, 520);
-    ctx.fillText('Enter = submit | Backspace = delete', 220, 540);
-
     drawVignette();
-    drawNoise(0.025);
+    drawNoise(0.02);
 }
 
 function renderSuccess() {
-    // Green success screen
-    ctx.fillStyle = '#001a00';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    // Draw the hatch interior background
+    if (images.bottomBg) {
+        const scale = CANVAS_WIDTH / images.bottomBg.width;
+        const height = images.bottomBg.height * scale;
+        ctx.drawImage(images.bottomBg, 0, 0, CANVAS_WIDTH, height);
+    } else {
+        ctx.fillStyle = '#001a00';
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
 
-    // Success glow
+    // Success glow overlay
     const gradient = ctx.createRadialGradient(
         CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 0,
-        CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 300
+        CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 400
     );
-    gradient.addColorStop(0, 'rgba(0, 100, 0, 0.3)');
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(0, 'rgba(0, 80, 0, 0.6)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+    // Success message box
+    ctx.fillStyle = 'rgba(0, 30, 0, 0.85)';
+    ctx.fillRect(150, 200, 500, 200);
+    ctx.strokeStyle = '#00cc00';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(150, 200, 500, 200);
+
     // Success text
     ctx.fillStyle = '#00ff00';
-    ctx.font = 'bold 64px "Arial", sans-serif';
+    ctx.font = 'bold 48px "Arial", sans-serif';
     ctx.textAlign = 'center';
     ctx.shadowColor = '#00ff00';
-    ctx.shadowBlur = 30;
-    ctx.fillText('SYSTEM RESET', CANVAS_WIDTH / 2, 250);
+    ctx.shadowBlur = 20;
+    ctx.fillText('SYSTEM RESET', CANVAS_WIDTH / 2, 270);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = '#00cc00';
-    ctx.font = '32px "Arial", sans-serif';
+    ctx.font = '26px "Arial", sans-serif';
     ctx.fillText('COUNTDOWN AVERTED', CANVAS_WIDTH / 2, 320);
 
     ctx.fillStyle = '#008800';
-    ctx.font = '24px "Arial", sans-serif';
+    ctx.font = '20px "Arial", sans-serif';
     const restoredTime = String(settings.countdownMinutes).padStart(3, '0') + ':00';
-    ctx.fillText(restoredTime + ' RESTORED', CANVAS_WIDTH / 2, 380);
+    ctx.fillText(restoredTime + ' RESTORED', CANVAS_WIDTH / 2, 360);
 
     // Restart button
-    ctx.fillStyle = '#002200';
+    ctx.fillStyle = '#003300';
     ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
     ctx.strokeStyle = '#00cc00';
     ctx.lineWidth = 2;
@@ -1353,36 +1516,52 @@ function renderSuccess() {
 }
 
 function renderFail() {
-    // Flashing fail screen
+    // Draw the hatch interior background
+    if (images.bottomBg) {
+        const scale = CANVAS_WIDTH / images.bottomBg.width;
+        const height = images.bottomBg.height * scale;
+        ctx.drawImage(images.bottomBg, 0, 0, CANVAS_WIDTH, height);
+    }
+
+    // Flashing red overlay
     flashPhase += 0.2;
     const flash = Math.sin(flashPhase) > 0;
 
-    ctx.fillStyle = flash ? '#330000' : '#000000';
+    // Red emergency overlay
+    ctx.fillStyle = flash ? 'rgba(60, 0, 0, 0.7)' : 'rgba(20, 0, 0, 0.6)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Danger stripes
-    if (flash) {
-        ctx.fillStyle = '#550000';
-        for (let i = 0; i < 20; i++) {
-            ctx.fillRect(0, i * 60, CANVAS_WIDTH, 30);
-        }
-    }
+    // Flashing warning border
+    ctx.strokeStyle = flash ? '#ff0000' : '#660000';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(4, 4, CANVAS_WIDTH - 8, CANVAS_HEIGHT - 8);
+
+    // Failure message box
+    ctx.fillStyle = flash ? 'rgba(50, 0, 0, 0.9)' : 'rgba(30, 0, 0, 0.9)';
+    ctx.fillRect(100, 180, 600, 220);
+    ctx.strokeStyle = '#cc0000';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(100, 180, 600, 220);
 
     // Failure text
     ctx.fillStyle = flash ? '#ff0000' : '#880000';
-    ctx.font = 'bold 72px "Arial", sans-serif';
+    ctx.font = 'bold 56px "Arial", sans-serif';
     ctx.textAlign = 'center';
     ctx.shadowColor = '#ff0000';
-    ctx.shadowBlur = flash ? 50 : 20;
-    ctx.fillText('SYSTEM FAILURE', CANVAS_WIDTH / 2, 250);
+    ctx.shadowBlur = flash ? 40 : 15;
+    ctx.fillText('SYSTEM FAILURE', CANVAS_WIDTH / 2, 260);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = '#ff4444';
-    ctx.font = '28px "Arial", sans-serif';
-    ctx.fillText('PROTOCOL NOT EXECUTED', CANVAS_WIDTH / 2, 320);
+    ctx.font = '24px "Arial", sans-serif';
+    ctx.fillText('PROTOCOL NOT EXECUTED', CANVAS_WIDTH / 2, 310);
+
+    ctx.fillStyle = '#aa3333';
+    ctx.font = '18px "Courier New", monospace';
+    ctx.fillText('THE NUMBERS WERE NOT ENTERED IN TIME', CANVAS_WIDTH / 2, 355);
 
     // Restart button
-    ctx.fillStyle = '#220000';
+    ctx.fillStyle = '#330000';
     ctx.fillRect(restartButton.x, restartButton.y, restartButton.width, restartButton.height);
     ctx.strokeStyle = '#cc0000';
     ctx.lineWidth = 2;
