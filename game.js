@@ -670,9 +670,9 @@ function drawWallFlipDigit(digit, x, y) {
 
 // Terminal prompt on the computer screen
 function drawTerminalPrompt() {
-    // Position on the computer monitor (approximate center of screen in bg image)
-    const termX = 340;
-    const termY = 290;
+    // Position on the computer monitor (top left corner of screen)
+    const termX = 295;
+    const termY = 210;
 
     // Green terminal text
     ctx.fillStyle = '#00ff00';
