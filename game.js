@@ -1307,38 +1307,33 @@ function updateAvatarsForScroll() {
     const avatar1OnScreen = avatar1Top > -200 && avatar1Top < CANVAS_HEIGHT;
     const avatar2OnScreen = avatar2Top > -200 && avatar2Top < CANVAS_HEIGHT;
 
-    // Show avatar 1 - scrolls with panel 1
-    if (panel1Visible && avatar1OnScreen && !panel2Visible) {
+    // Show avatar 1 - scrolls with panel 1 until it exits top of screen
+    if (avatar1OnScreen) {
         const avatarAlpha = Math.min(1, Math.max(0,
-            Math.min(avatar1Top / 100, (CANVAS_HEIGHT - avatar1Top) / 100)
+            Math.min((avatar1Top + 200) / 150, (CANVAS_HEIGHT - avatar1Top) / 150)
         ));
         if (avatarGif) {
             avatarGif.style.display = 'block';
             avatarGif.style.opacity = avatarAlpha;
             avatarGif.style.top = avatar1Top + 'px';
         }
-        if (avatarGif2) {
-            avatarGif2.style.display = 'none';
-        }
-    }
-    // Show avatar 2 - scrolls with panel 2
-    else if (panel2Visible && avatar2OnScreen) {
-        const avatarAlpha = Math.min(1, Math.max(0,
-            Math.min(avatar2Top / 100, (CANVAS_HEIGHT - avatar2Top) / 100)
-        ));
+    } else {
         if (avatarGif) {
             avatarGif.style.display = 'none';
         }
+    }
+
+    // Show avatar 2 - scrolls with panel 2 until it exits top of screen
+    if (avatar2OnScreen) {
+        const avatarAlpha = Math.min(1, Math.max(0,
+            Math.min((avatar2Top + 200) / 150, (CANVAS_HEIGHT - avatar2Top) / 150)
+        ));
         if (avatarGif2) {
             avatarGif2.style.display = 'block';
             avatarGif2.style.opacity = avatarAlpha;
             avatarGif2.style.top = avatar2Top + 'px';
         }
     } else {
-        // Hide both avatars
-        if (avatarGif) {
-            avatarGif.style.display = 'none';
-        }
         if (avatarGif2) {
             avatarGif2.style.display = 'none';
         }
