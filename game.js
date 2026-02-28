@@ -1292,43 +1292,47 @@ function updateAvatarsForScroll() {
     const panel1Y = storyPanel1Y - scrollOffset;
     const panel2Y = storyPanel2Y - scrollOffset;
 
-    // Panel center points relative to screen center
-    const panel1Center = panel1Y + STORY_PANEL_HEIGHT / 2;
-    const panel2Center = panel2Y + STORY_PANEL_HEIGHT / 2;
-    const screenCenter = CANVAS_HEIGHT / 2;
+    // Avatar offset within panel (positioned near top of panel content)
+    const avatarOffsetInPanel = 150;
 
-    // Determine which panel is most centered (within visible range)
-    const panel1Dist = Math.abs(panel1Center - screenCenter);
-    const panel2Dist = Math.abs(panel2Center - screenCenter);
+    // Calculate avatar positions - they scroll with their panels
+    const avatar1Top = panel1Y + avatarOffsetInPanel;
+    const avatar2Top = panel2Y + avatarOffsetInPanel;
 
-    // Panel is "active" when its center is within range of screen
-    const panel1Active = panel1Y > -STORY_PANEL_HEIGHT && panel1Y < CANVAS_HEIGHT && panel1Dist < STORY_PANEL_HEIGHT;
-    const panel2Active = panel2Y > -STORY_PANEL_HEIGHT && panel2Y < CANVAS_HEIGHT && panel2Dist < STORY_PANEL_HEIGHT;
+    // Panel is visible when any part is on screen
+    const panel1Visible = panel1Y < CANVAS_HEIGHT && panel1Y + STORY_PANEL_HEIGHT > 0;
+    const panel2Visible = panel2Y < CANVAS_HEIGHT && panel2Y + STORY_PANEL_HEIGHT > 0;
 
-    // Fixed avatar position (stays at 180px from top, as in CSS)
-    const avatarFixedTop = 180;
+    // Avatar is visible when it's within screen bounds (with some padding)
+    const avatar1OnScreen = avatar1Top > -200 && avatar1Top < CANVAS_HEIGHT;
+    const avatar2OnScreen = avatar2Top > -200 && avatar2Top < CANVAS_HEIGHT;
 
-    if (panel1Active && !panel2Active) {
-        // Show avatar 1 - fade based on panel center distance from screen center
-        const avatarAlpha = Math.min(1, Math.max(0, 1 - panel1Dist / 350));
+    // Show avatar 1 - scrolls with panel 1
+    if (panel1Visible && avatar1OnScreen && !panel2Visible) {
+        const avatarAlpha = Math.min(1, Math.max(0,
+            Math.min(avatar1Top / 100, (CANVAS_HEIGHT - avatar1Top) / 100)
+        ));
         if (avatarGif) {
             avatarGif.style.display = 'block';
             avatarGif.style.opacity = avatarAlpha;
-            avatarGif.style.top = avatarFixedTop + 'px';
+            avatarGif.style.top = avatar1Top + 'px';
         }
         if (avatarGif2) {
             avatarGif2.style.display = 'none';
         }
-    } else if (panel2Active) {
-        // Show avatar 2 - fade based on panel center distance from screen center
-        const avatarAlpha = Math.min(1, Math.max(0, 1 - panel2Dist / 350));
+    }
+    // Show avatar 2 - scrolls with panel 2
+    else if (panel2Visible && avatar2OnScreen) {
+        const avatarAlpha = Math.min(1, Math.max(0,
+            Math.min(avatar2Top / 100, (CANVAS_HEIGHT - avatar2Top) / 100)
+        ));
         if (avatarGif) {
             avatarGif.style.display = 'none';
         }
         if (avatarGif2) {
             avatarGif2.style.display = 'block';
             avatarGif2.style.opacity = avatarAlpha;
-            avatarGif2.style.top = avatarFixedTop + 'px';
+            avatarGif2.style.top = avatar2Top + 'px';
         }
     } else {
         // Hide both avatars
@@ -1341,7 +1345,7 @@ function updateAvatarsForScroll() {
     }
 
     // Start theme music when entering story panels, fade rain
-    if ((panel1Active || panel2Active) && rainSound && !rainSound.paused) {
+    if ((panel1Visible || panel2Visible) && rainSound && !rainSound.paused) {
         fadeOutRainSound();
         playThemeMusic();
     }
