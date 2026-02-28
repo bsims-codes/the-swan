@@ -668,6 +668,34 @@ function drawWallFlipDigit(digit, x, y) {
     ctx.shadowBlur = 0;
 }
 
+// Terminal prompt on the computer screen
+function drawTerminalPrompt() {
+    // Position on the computer monitor (approximate center of screen in bg image)
+    const termX = 340;
+    const termY = 290;
+
+    // Green terminal text
+    ctx.fillStyle = '#00ff00';
+    ctx.font = 'bold 20px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.shadowColor = '#00ff00';
+    ctx.shadowBlur = 8;
+
+    // Draw prompt
+    ctx.fillText('>:', termX, termY);
+
+    // Blinking cursor (block style like the reference image)
+    const cursorBlink = Math.sin(performance.now() / 300) > 0;
+    if (cursorBlink) {
+        // Draw cursor block after the prompt
+        const promptWidth = ctx.measureText('>:').width;
+        ctx.fillRect(termX + promptWidth + 5, termY - 15, 12, 20);
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'center';
+}
+
 function drawWallColon(x, y) {
     const dotSize = 5;
     const spacing = WALL_TILE_HEIGHT * 0.22;
@@ -1357,6 +1385,9 @@ function renderRunning(remainingMs) {
         ctx.fillStyle = '#0c0c0c';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
+
+    // Draw terminal prompt on computer screen
+    drawTerminalPrompt();
 
     // Draw the flip clock countdown on the wall (above computer)
     drawWallClock(remainingMs);
