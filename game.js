@@ -84,6 +84,16 @@ let storyTextIndex = 0;         // Current character being typed
 let storyStartTime = 0;         // When story started
 let storyComplete = false;      // Story finished displaying
 
+// Rain effect
+let rainDrops = [];
+const RAIN_DROP_COUNT = 100;
+const RAIN_SPEED_MIN = 400;
+const RAIN_SPEED_MAX = 700;
+const RAIN_LENGTH_MIN = 15;
+const RAIN_LENGTH_MAX = 30;
+const RAIN_OPACITY = 0.3;
+let lastRainTime = 0;
+
 // DHARMA orientation text (dynamic based on settings)
 function getStoryLines() {
     return [
@@ -518,6 +528,63 @@ function drawVignette() {
 }
 
 // =====================
+// Rain Effect
+// =====================
+function initRain() {
+    rainDrops = [];
+    for (let i = 0; i < RAIN_DROP_COUNT; i++) {
+        rainDrops.push(createRainDrop(true));
+    }
+    lastRainTime = performance.now();
+}
+
+function createRainDrop(randomY = false) {
+    return {
+        x: Math.random() * (CANVAS_WIDTH + 100) - 50,
+        y: randomY ? Math.random() * CANVAS_HEIGHT : -RAIN_LENGTH_MAX,
+        speed: RAIN_SPEED_MIN + Math.random() * (RAIN_SPEED_MAX - RAIN_SPEED_MIN),
+        length: RAIN_LENGTH_MIN + Math.random() * (RAIN_LENGTH_MAX - RAIN_LENGTH_MIN),
+        drift: -30 - Math.random() * 20
+    };
+}
+
+function updateRain() {
+    const now = performance.now();
+    const dt = (now - lastRainTime) / 1000;
+    lastRainTime = now;
+
+    for (let i = 0; i < rainDrops.length; i++) {
+        const drop = rainDrops[i];
+        drop.y += drop.speed * dt;
+        drop.x += drop.drift * dt;
+
+        if (drop.y > CANVAS_HEIGHT + drop.length || drop.x < -50) {
+            rainDrops[i] = createRainDrop(false);
+        }
+    }
+}
+
+function renderRain(fadeAmount = 1) {
+    if (rainDrops.length === 0) return;
+
+    updateRain();
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(180, 200, 220, ${RAIN_OPACITY * fadeAmount})`;
+    ctx.lineWidth = 1;
+    ctx.lineCap = 'round';
+
+    for (const drop of rainDrops) {
+        ctx.beginPath();
+        ctx.moveTo(drop.x, drop.y);
+        ctx.lineTo(drop.x - 3, drop.y + drop.length);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+// =====================
 // Keypad
 // =====================
 function initKeypad() {
@@ -605,6 +672,9 @@ function renderIntro() {
         ctx.drawImage(images.logo2, logo2X, logo2Y, logo2Width, logo2Height);
     }
 
+    // Render rain effect
+    renderRain(1);
+
     // Pulsing "Click to continue" text
     flickerPhase += 0.03;
     const alpha = 0.5 + Math.sin(flickerPhase) * 0.3;
@@ -672,6 +742,12 @@ function renderScroll() {
         ctx.globalAlpha = 1;
     }
 
+    // Render rain with fade as we scroll (outdoor to indoor transition)
+    const rainFade = Math.max(0, 1 - (scrollOffset / (scrollTarget * 0.75)));
+    if (rainFade > 0) {
+        renderRain(rainFade);
+    }
+
     drawVignette();
 
     // Check if scroll is complete
@@ -706,10 +782,10 @@ function renderStory() {
     ctx.fillStyle = `rgba(0, 0, 0, ${storyAlpha * 0.7})`;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Show the animated GIF avatar
+    // Show the animated GIF avatar (full image, no clipping)
     if (avatarGif) {
         avatarGif.style.display = 'block';
-        avatarGif.style.opacity = storyAlpha;
+        avatarGif.style.opacity = Math.min(1, storyAlpha * 1.5);
     }
 
     // Typewriter effect for story text
@@ -1243,6 +1319,9 @@ function resetGame() {
     storyTextIndex = 0;
     storyComplete = false;
 
+    // Reinitialize rain
+    initRain();
+
     // Reset flip digits
     const initStr = getInitStr();
     for (let i = 0; i < 5; i++) {
@@ -1253,6 +1332,7 @@ function resetGame() {
 function init() {
     initKeypad();
     hideAvatarGif();
+    initRain();
 
     // Load images first
     loadAllImages();
