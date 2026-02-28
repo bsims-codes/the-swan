@@ -1175,8 +1175,12 @@ function renderScroll() {
     // Draw the scrolling backgrounds and story panels
     drawScrollingContent();
 
-    // Render smoke monster in sky (visible during outdoor scroll)
-    if (scrollOffset < storyPanel1Y - 100) {
+    // Render smoke monster in sky (starts after 200px of scroll, visible during outdoor area)
+    if (scrollOffset >= 200 && scrollOffset < storyPanel1Y - 100) {
+        // Start smoke monster on first frame it becomes visible
+        if (!smokeMonsterActive && smokeParticles.length === 0) {
+            startSmokeMonster();
+        }
         renderSmokeMonster();
     }
 
@@ -1701,8 +1705,8 @@ function handleClick(event) {
         currentState = State.SCROLL;
         autoScrolling = true;
         scrollStartTime = Date.now();
-        // Start smoke monster immediately when scroll begins
-        startSmokeMonster();
+        // Reset smoke monster (will start after 200px of scroll)
+        initSmokeMonster();
     } else if (currentState === State.SCROLL) {
         // Click to speed up scroll temporarily
         scrollSpeed = Math.min(scrollSpeed + 0.8, 4);
