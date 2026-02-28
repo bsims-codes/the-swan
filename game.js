@@ -533,10 +533,10 @@ function drawCountdown(remainingMs) {
     }
 }
 
-// Wall-mounted clock for the hatch interior
-const WALL_TILE_WIDTH = 70;
-const WALL_TILE_HEIGHT = 95;
-const WALL_TILE_GAP = 8;
+// Wall-mounted clock for the hatch interior (compact size)
+const WALL_TILE_WIDTH = 50;
+const WALL_TILE_HEIGHT = 68;
+const WALL_TILE_GAP = 5;
 
 function drawWallClock(remainingMs) {
     const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
@@ -552,19 +552,19 @@ function drawWallClock(remainingMs) {
         flipDigits[i].setChar(timeStr[i]);
     }
 
-    // Layout calculations for wall clock (smaller, centered above computer)
-    const colonWidth = 25;
+    // Layout calculations for wall clock (compact, tight at top)
+    const colonWidth = 16;
     const minutesWidth = 3 * WALL_TILE_WIDTH + 2 * WALL_TILE_GAP;
     const secondsWidth = 2 * WALL_TILE_WIDTH + WALL_TILE_GAP;
     const totalWidth = minutesWidth + colonWidth + secondsWidth;
     const startX = (CANVAS_WIDTH - totalWidth) / 2;
-    const startY = 60;  // Position on the wall above computer
+    const startY = 25;  // Tight at the top
 
     // Draw clock housing/frame (industrial look)
-    const frameX = startX - 20;
-    const frameY = startY - 15;
-    const frameW = totalWidth + 40;
-    const frameH = WALL_TILE_HEIGHT + 30;
+    const frameX = startX - 12;
+    const frameY = startY - 10;
+    const frameW = totalWidth + 24;
+    const frameH = WALL_TILE_HEIGHT + 20;
 
     // Outer housing
     ctx.fillStyle = '#2a2a2a';
@@ -580,12 +580,12 @@ function drawWallClock(remainingMs) {
 
     // Mounting bolts
     ctx.fillStyle = '#555';
-    const boltSize = 8;
+    const boltSize = 5;
     ctx.beginPath();
-    ctx.arc(frameX + 12, frameY + 12, boltSize, 0, Math.PI * 2);
+    ctx.arc(frameX + 8, frameY + 8, boltSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(frameX + frameW - 12, frameY + 12, boltSize, 0, Math.PI * 2);
+    ctx.arc(frameX + frameW - 8, frameY + 8, boltSize, 0, Math.PI * 2);
     ctx.fill();
 
     // Draw minute digits (scaled)
@@ -669,8 +669,8 @@ function drawWallFlipDigit(digit, x, y) {
 }
 
 function drawWallColon(x, y) {
-    const dotSize = 8;
-    const spacing = WALL_TILE_HEIGHT * 0.25;
+    const dotSize = 5;
+    const spacing = WALL_TILE_HEIGHT * 0.22;
 
     ctx.fillStyle = '#888';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
@@ -1288,37 +1288,47 @@ function drawStoryPanel2(y) {
 }
 
 function updateAvatarsForScroll() {
-    // Show avatar 1 during story panel 1 visibility
+    // Calculate panel positions relative to screen
     const panel1Y = storyPanel1Y - scrollOffset;
-    const panel1Visible = panel1Y < CANVAS_HEIGHT && panel1Y + STORY_PANEL_HEIGHT > 0;
-    const panel1CenterOnScreen = panel1Y > -STORY_PANEL_HEIGHT/2 && panel1Y < CANVAS_HEIGHT;
-
-    // Show avatar 2 during story panel 2 visibility
     const panel2Y = storyPanel2Y - scrollOffset;
-    const panel2Visible = panel2Y < CANVAS_HEIGHT && panel2Y + STORY_PANEL_HEIGHT > 0;
-    const panel2CenterOnScreen = panel2Y > -STORY_PANEL_HEIGHT/2 && panel2Y < CANVAS_HEIGHT;
 
-    if (panel1CenterOnScreen && !panel2CenterOnScreen) {
-        // Show avatar 1
-        const avatarAlpha = Math.min(1, Math.max(0, 1 - Math.abs(panel1Y + STORY_PANEL_HEIGHT/2 - CANVAS_HEIGHT/2) / 300));
+    // Panel center points relative to screen center
+    const panel1Center = panel1Y + STORY_PANEL_HEIGHT / 2;
+    const panel2Center = panel2Y + STORY_PANEL_HEIGHT / 2;
+    const screenCenter = CANVAS_HEIGHT / 2;
+
+    // Determine which panel is most centered (within visible range)
+    const panel1Dist = Math.abs(panel1Center - screenCenter);
+    const panel2Dist = Math.abs(panel2Center - screenCenter);
+
+    // Panel is "active" when its center is within range of screen
+    const panel1Active = panel1Y > -STORY_PANEL_HEIGHT && panel1Y < CANVAS_HEIGHT && panel1Dist < STORY_PANEL_HEIGHT;
+    const panel2Active = panel2Y > -STORY_PANEL_HEIGHT && panel2Y < CANVAS_HEIGHT && panel2Dist < STORY_PANEL_HEIGHT;
+
+    // Fixed avatar position (stays at 180px from top, as in CSS)
+    const avatarFixedTop = 180;
+
+    if (panel1Active && !panel2Active) {
+        // Show avatar 1 - fade based on panel center distance from screen center
+        const avatarAlpha = Math.min(1, Math.max(0, 1 - panel1Dist / 350));
         if (avatarGif) {
             avatarGif.style.display = 'block';
             avatarGif.style.opacity = avatarAlpha;
-            avatarGif.style.top = Math.max(100, Math.min(300, panel1Y + 150)) + 'px';
+            avatarGif.style.top = avatarFixedTop + 'px';
         }
         if (avatarGif2) {
             avatarGif2.style.display = 'none';
         }
-    } else if (panel2CenterOnScreen) {
-        // Show avatar 2
-        const avatarAlpha = Math.min(1, Math.max(0, 1 - Math.abs(panel2Y + STORY_PANEL_HEIGHT/2 - CANVAS_HEIGHT/2) / 300));
+    } else if (panel2Active) {
+        // Show avatar 2 - fade based on panel center distance from screen center
+        const avatarAlpha = Math.min(1, Math.max(0, 1 - panel2Dist / 350));
         if (avatarGif) {
             avatarGif.style.display = 'none';
         }
         if (avatarGif2) {
             avatarGif2.style.display = 'block';
             avatarGif2.style.opacity = avatarAlpha;
-            avatarGif2.style.top = Math.max(100, Math.min(300, panel2Y + 150)) + 'px';
+            avatarGif2.style.top = avatarFixedTop + 'px';
         }
     } else {
         // Hide both avatars
@@ -1331,7 +1341,7 @@ function updateAvatarsForScroll() {
     }
 
     // Start theme music when entering story panels, fade rain
-    if ((panel1CenterOnScreen || panel2CenterOnScreen) && rainSound && !rainSound.paused) {
+    if ((panel1Active || panel2Active) && rainSound && !rainSound.paused) {
         fadeOutRainSound();
         playThemeMusic();
     }
@@ -1351,19 +1361,6 @@ function renderRunning(remainingMs) {
 
     // Draw the flip clock countdown on the wall (above computer)
     drawWallClock(remainingMs);
-
-    // Warning if getting close to code window
-    if (remainingMs <= getCodeWindowMs() + 60000 && remainingMs > getCodeWindowMs()) {
-        flickerPhase += 0.1;
-        const alpha = 0.5 + Math.sin(flickerPhase) * 0.3;
-        ctx.fillStyle = `rgba(255, 100, 0, ${alpha})`;
-        ctx.font = 'bold 20px "Arial", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 10;
-        ctx.fillText('PREPARE TO ENTER THE NUMBERS', CANVAS_WIDTH / 2, 550);
-        ctx.shadowBlur = 0;
-    }
 
     drawVignette();
     drawNoise(0.015);
