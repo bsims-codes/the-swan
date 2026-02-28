@@ -37,12 +37,99 @@
             display: none;
             z-index: 10;
         }
+        #admin-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #cc0000;
+            padding: 30px;
+            display: none;
+            z-index: 100;
+            font-family: "Courier New", monospace;
+            color: #ccc;
+            min-width: 350px;
+        }
+        #admin-panel h2 {
+            color: #cc0000;
+            margin: 0 0 20px 0;
+            text-align: center;
+            font-size: 18px;
+        }
+        #admin-panel label {
+            display: block;
+            margin: 15px 0 5px 0;
+            color: #888;
+            font-size: 12px;
+        }
+        #admin-panel input {
+            width: 100%;
+            padding: 8px;
+            background: #111;
+            border: 1px solid #444;
+            color: #0f0;
+            font-family: "Courier New", monospace;
+            font-size: 16px;
+        }
+        #admin-panel input:focus {
+            outline: none;
+            border-color: #cc0000;
+        }
+        #admin-panel .btn-row {
+            margin-top: 25px;
+            display: flex;
+            gap: 10px;
+        }
+        #admin-panel button {
+            flex: 1;
+            padding: 10px;
+            font-family: "Courier New", monospace;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+        #admin-panel .save-btn {
+            background: #006600;
+            color: #fff;
+        }
+        #admin-panel .save-btn:hover {
+            background: #008800;
+        }
+        #admin-panel .cancel-btn {
+            background: #440000;
+            color: #fff;
+        }
+        #admin-panel .cancel-btn:hover {
+            background: #660000;
+        }
+        #admin-panel .hint {
+            color: #555;
+            font-size: 11px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <canvas id="game" width="800" height="600"></canvas>
         <img id="avatar-gif" src="Animating_Lost_Guy_Hands_down.gif" alt="Avatar">
+        <div id="admin-panel">
+            <h2>ADMIN SETTINGS</h2>
+            <label>COUNTDOWN TIMER (minutes)</label>
+            <input type="number" id="admin-countdown" min="1" max="999" value="6">
+            <div class="hint">Total time before system failure</div>
+
+            <label>KEYPAD WINDOW (minutes)</label>
+            <input type="number" id="admin-keypad" min="1" max="60" value="4">
+            <div class="hint">When keypad appears (time remaining)</div>
+
+            <div class="btn-row">
+                <button class="save-btn" id="admin-save">SAVE & RESTART</button>
+                <button class="cancel-btn" id="admin-cancel">CANCEL</button>
+            </div>
+            <div class="hint" style="text-align: center; margin-top: 15px;">Press A to toggle this panel</div>
+        </div>
     </div>
     <script src="game.js"></script>
 </body>

@@ -5,12 +5,45 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const avatarGif = document.getElementById('avatar-gif');
+const adminPanel = document.getElementById('admin-panel');
+const adminCountdownInput = document.getElementById('admin-countdown');
+const adminKeypadInput = document.getElementById('admin-keypad');
+const adminSaveBtn = document.getElementById('admin-save');
+const adminCancelBtn = document.getElementById('admin-cancel');
+let adminPanelOpen = false;
 
 // Constants
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 600;
-const TOTAL_TIME_MS = 108 * 60 * 1000;
-const CODE_WINDOW_MS = 4 * 60 * 1000;
+// Timer settings (loaded from localStorage or defaults)
+const SETTINGS_KEY = 'hatch_settings';
+const defaultSettings = { countdownMinutes: 6, keypadMinutes: 4 };
+let settings = loadSettings();
+
+function loadSettings() {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored) {
+        try {
+            return JSON.parse(stored);
+        } catch (e) {
+            return { ...defaultSettings };
+        }
+    }
+    return { ...defaultSettings };
+}
+
+function saveSettings(countdownMinutes, keypadMinutes) {
+    settings = { countdownMinutes, keypadMinutes };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function getTotalTimeMs() {
+    return settings.countdownMinutes * 60 * 1000;
+}
+
+function getCodeWindowMs() {
+    return settings.keypadMinutes * 60 * 1000;
+}
 const CORRECT_CODE = '4 8 15 16 23 42';
 const STORAGE_KEY = 'hatch_endTime';
 
@@ -51,20 +84,22 @@ let storyTextIndex = 0;         // Current character being typed
 let storyStartTime = 0;         // When story started
 let storyComplete = false;      // Story finished displaying
 
-// DHARMA orientation text
-const storyLines = [
-    "Welcome to Station 3: The Swan.",
-    "",
-    "Every 108 minutes, you must enter",
-    "the code into the computer.",
-    "",
-    "4  8  15  16  23  42",
-    "",
-    "This is your duty. This is your purpose.",
-    "Do not fail.",
-    "",
-    "[Click to begin your shift]"
-];
+// DHARMA orientation text (dynamic based on settings)
+function getStoryLines() {
+    return [
+        "Welcome to Station 3: The Swan.",
+        "",
+        `Every ${settings.countdownMinutes} minutes, you must enter`,
+        "the code into the computer.",
+        "",
+        "4  8  15  16  23  42",
+        "",
+        "This is your duty. This is your purpose.",
+        "Do not fail.",
+        "",
+        "[Click to begin your shift]"
+    ];
+}
 
 // Button definitions
 const startButton = { x: 325, y: 400, width: 150, height: 50 };
@@ -156,12 +191,16 @@ class FlipDigit {
 }
 
 // Create flip digits for MMM:SS (5 digits)
+function getInitStr() {
+    return String(settings.countdownMinutes).padStart(3, '0') + '00';
+}
+const initDigits = getInitStr();
 const flipDigits = [
-    new FlipDigit('1'),
-    new FlipDigit('0'),
-    new FlipDigit('8'),
-    new FlipDigit('0'),
-    new FlipDigit('0')
+    new FlipDigit(initDigits[0]),
+    new FlipDigit(initDigits[1]),
+    new FlipDigit(initDigits[2]),
+    new FlipDigit(initDigits[3]),
+    new FlipDigit(initDigits[4])
 ];
 
 // =====================
@@ -577,7 +616,7 @@ function renderIntro() {
     // Debug instructions (subtle)
     ctx.fillStyle = '#333';
     ctx.font = '12px "Courier New", monospace';
-    ctx.fillText('D = debug | R = reset', CANVAS_WIDTH / 2, 580);
+    ctx.fillText('A = admin | D = debug | R = reset', CANVAS_WIDTH / 2, 580);
 
     drawVignette();
 }
@@ -676,7 +715,7 @@ function renderStory() {
     // Typewriter effect for story text
     const elapsed = Date.now() - storyStartTime;
     const charsPerSecond = 30;
-    const totalChars = storyLines.join('\n').length;
+    const totalChars = getStoryLines().join('\n').length;
     storyTextIndex = Math.min(totalChars, Math.floor(elapsed * charsPerSecond / 1000));
 
     // Draw story text with typewriter effect
@@ -688,7 +727,7 @@ function renderStory() {
     let lineY = 200;
     const textX = 280;
 
-    for (const line of storyLines) {
+    for (const line of getStoryLines()) {
         if (charCount >= storyTextIndex) break;
 
         const charsToShow = Math.min(line.length, storyTextIndex - charCount);
@@ -728,7 +767,7 @@ function renderRunning(remainingMs) {
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // Warning header
-    const timeRatio = remainingMs / TOTAL_TIME_MS;
+    const timeRatio = remainingMs / getTotalTimeMs();
     let headerColor = '#666';
     if (timeRatio < 0.1) headerColor = '#aa4444';
     else if (timeRatio < 0.25) headerColor = '#886644';
@@ -747,7 +786,7 @@ function renderRunning(remainingMs) {
     ctx.fillText('EXECUTE PROTOCOL', CANVAS_WIDTH / 2, 380);
 
     // Warning if getting close to code window
-    if (remainingMs <= CODE_WINDOW_MS + 60000 && remainingMs > CODE_WINDOW_MS) {
+    if (remainingMs <= getCodeWindowMs() + 60000 && remainingMs > getCodeWindowMs()) {
         flickerPhase += 0.1;
         const alpha = 0.5 + Math.sin(flickerPhase) * 0.3;
         ctx.fillStyle = `rgba(255, 100, 0, ${alpha})`;
@@ -883,7 +922,8 @@ function renderSuccess() {
 
     ctx.fillStyle = '#008800';
     ctx.font = '24px "Arial", sans-serif';
-    ctx.fillText('108:00 RESTORED', CANVAS_WIDTH / 2, 380);
+    const restoredTime = String(settings.countdownMinutes).padStart(3, '0') + ':00';
+    ctx.fillText(restoredTime + ' RESTORED', CANVAS_WIDTH / 2, 380);
 
     // Restart button
     ctx.fillStyle = '#002200';
@@ -979,7 +1019,7 @@ function update() {
         return 0;
     }
 
-    if (currentState === State.RUNNING && remainingMs <= CODE_WINDOW_MS) {
+    if (currentState === State.RUNNING && remainingMs <= getCodeWindowMs()) {
         currentState = State.CODE_WINDOW;
     }
 
@@ -1049,7 +1089,7 @@ function handleClick(event) {
             startGame();
         } else {
             // Click to skip typewriter and show all text
-            storyTextIndex = storyLines.join('\n').length;
+            storyTextIndex = getStoryLines().join('\n').length;
             storyComplete = true;
         }
     } else if (currentState === State.CODE_WINDOW) {
@@ -1066,7 +1106,50 @@ function handleClick(event) {
     }
 }
 
+function toggleAdminPanel() {
+    adminPanelOpen = !adminPanelOpen;
+    if (adminPanelOpen) {
+        adminCountdownInput.value = settings.countdownMinutes;
+        adminKeypadInput.value = settings.keypadMinutes;
+        adminPanel.style.display = 'block';
+    } else {
+        adminPanel.style.display = 'none';
+    }
+}
+
+function handleAdminSave() {
+    const countdown = parseInt(adminCountdownInput.value, 10) || 6;
+    const keypad = parseInt(adminKeypadInput.value, 10) || 4;
+
+    // Validate: keypad must be less than countdown
+    if (keypad >= countdown) {
+        alert('Keypad window must be less than countdown time!');
+        return;
+    }
+
+    saveSettings(countdown, keypad);
+    toggleAdminPanel();
+    resetGame();
+}
+
+function handleAdminCancel() {
+    toggleAdminPanel();
+}
+
 function handleKeydown(event) {
+    // Ignore keys when admin panel is open (except Escape)
+    if (adminPanelOpen) {
+        if (event.key === 'Escape' || event.key === 'a' || event.key === 'A') {
+            toggleAdminPanel();
+        }
+        return;
+    }
+
+    if (event.key === 'a' || event.key === 'A') {
+        toggleAdminPanel();
+        return;
+    }
+
     if (event.key === 'd' || event.key === 'D') {
         debugMode = !debugMode;
         return;
@@ -1132,13 +1215,13 @@ function hideAvatarGif() {
 
 function startGame() {
     hideAvatarGif();
-    endTime = Date.now() + TOTAL_TIME_MS;
+    endTime = Date.now() + getTotalTimeMs();
     localStorage.setItem(STORAGE_KEY, endTime.toString());
     currentState = State.RUNNING;
     enteredCode = '';
 
     // Reset flip digits to initial state
-    const initStr = '10800';
+    const initStr = getInitStr();
     for (let i = 0; i < 5; i++) {
         flipDigits[i] = new FlipDigit(initStr[i]);
     }
@@ -1161,7 +1244,7 @@ function resetGame() {
     storyComplete = false;
 
     // Reset flip digits
-    const initStr = '10800';
+    const initStr = getInitStr();
     for (let i = 0; i < 5; i++) {
         flipDigits[i] = new FlipDigit(initStr[i]);
     }
@@ -1191,7 +1274,7 @@ function init() {
                 flipDigits[i] = new FlipDigit(timeStr[i]);
             }
 
-            if (remainingMs <= CODE_WINDOW_MS) {
+            if (remainingMs <= getCodeWindowMs()) {
                 currentState = State.CODE_WINDOW;
             } else {
                 currentState = State.RUNNING;
@@ -1206,6 +1289,10 @@ function init() {
 
     canvas.addEventListener('click', handleClick);
     document.addEventListener('keydown', handleKeydown);
+
+    // Admin panel buttons
+    if (adminSaveBtn) adminSaveBtn.addEventListener('click', handleAdminSave);
+    if (adminCancelBtn) adminCancelBtn.addEventListener('click', handleAdminCancel);
 
     gameLoop();
 }
