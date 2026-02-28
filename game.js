@@ -81,7 +81,7 @@ let flashPhase = 0;
 // Intro animation state - one continuous Star Wars style scroll
 let scrollOffset = 0;           // Current scroll position
 let totalScrollHeight = 0;      // Total scrollable height
-let scrollSpeed = 0.6;          // Slow scroll speed (Star Wars style)
+let scrollSpeed = 1.0;          // Scroll speed
 let autoScrolling = false;      // Whether auto-scroll is active
 let scrollStartTime = 0;        // When scroll started (for text timing)
 
@@ -1181,9 +1181,9 @@ function renderScroll() {
         renderFog(fogFade);
     }
 
-    // Render rain (continues through story panels, fades near bottom bg)
-    const rainFadeStart = storyPanel2Y + STORY_PANEL_HEIGHT * 0.5;  // Start fading halfway through panel 2
-    const rainFadeEnd = bottomBgY;  // Fully faded by bottom bg
+    // Render rain (stops when entering the hatch / story panels)
+    const rainFadeStart = storyPanel1Y - 200;  // Start fading before story panel 1
+    const rainFadeEnd = storyPanel1Y;  // Fully faded by story panel 1
     let rainFade = 1;
     if (scrollOffset > rainFadeStart) {
         rainFade = Math.max(0, 1 - (scrollOffset - rainFadeStart) / (rainFadeEnd - rainFadeStart));
@@ -1695,10 +1695,10 @@ function handleClick(event) {
         scrollStartTime = Date.now();
     } else if (currentState === State.SCROLL) {
         // Click to speed up scroll temporarily
-        scrollSpeed = Math.min(scrollSpeed + 0.5, 3);
+        scrollSpeed = Math.min(scrollSpeed + 0.8, 4);
         // Reset speed after a moment
         setTimeout(() => {
-            scrollSpeed = 0.6;
+            scrollSpeed = 1.0;
         }, 500);
     } else if (currentState === State.CODE_WINDOW) {
         for (const btn of keypadButtons) {
@@ -1910,7 +1910,7 @@ function resetGame() {
 
     // Reset continuous scroll state
     scrollOffset = 0;
-    scrollSpeed = 0.6;
+    scrollSpeed = 1.0;
     autoScrolling = false;
     scrollStartTime = 0;
 
