@@ -823,8 +823,22 @@ function initSmokeMonster() {
     smokeMonsterY = 120;
     smokeMonsterAlpha = 0;
     smokeMonsterTimer = performance.now();
-    smokeMonsterDelay = 500;  // Appear quickly
+    smokeMonsterDelay = 500;
     lastSmokeMonsterTime = performance.now();
+}
+
+function startSmokeMonster() {
+    // Immediately activate the smoke monster
+    smokeParticles = [];
+    smokeMonsterActive = true;
+    smokeMonsterX = -200;
+    smokeMonsterY = 100 + Math.random() * 80;  // Position above trees
+    smokeMonsterVX = 100 + Math.random() * 50;
+    smokeMonsterVY = (Math.random() - 0.5) * 15;
+    smokeMonsterAlpha = 0.5;  // Start partially visible
+    lastSmokeMonsterTime = performance.now();
+    smokeMonsterTimer = performance.now();
+    smokeMonsterDelay = 2000;  // Delay before next appearance
 }
 
 function updateSmokeMonster() {
@@ -1161,17 +1175,9 @@ function renderScroll() {
     // Draw the scrolling backgrounds and story panels
     drawScrollingContent();
 
-    // Render smoke monster in sky (visible throughout lost-base.png outdoor area)
-    const smokeFadeStart = storyPanel1Y - 400;  // Start fading before reaching story panels
-    const smokeFadeEnd = storyPanel1Y - 100;    // Fully faded before story panels
-    let smokeFade = 1;
-    if (scrollOffset > smokeFadeStart) {
-        smokeFade = Math.max(0, 1 - (scrollOffset - smokeFadeStart) / (smokeFadeEnd - smokeFadeStart));
-    }
-    if (smokeFade > 0) {
-        ctx.globalAlpha = smokeFade;
+    // Render smoke monster in sky (visible during outdoor scroll)
+    if (scrollOffset < storyPanel1Y - 100) {
         renderSmokeMonster();
-        ctx.globalAlpha = 1;
     }
 
     // Fade out logos as we scroll
@@ -1695,9 +1701,8 @@ function handleClick(event) {
         currentState = State.SCROLL;
         autoScrolling = true;
         scrollStartTime = Date.now();
-        // Reset smoke monster so it appears during scroll
-        initSmokeMonster();
-        smokeMonsterDelay = 1000 + Math.random() * 1500;  // Shorter delay for scroll
+        // Start smoke monster immediately when scroll begins
+        startSmokeMonster();
     } else if (currentState === State.SCROLL) {
         // Click to speed up scroll temporarily
         scrollSpeed = Math.min(scrollSpeed + 0.8, 4);
