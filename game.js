@@ -671,7 +671,7 @@ function drawWallFlipDigit(digit, x, y) {
 // Terminal prompt on the computer screen
 function drawTerminalPrompt() {
     // Position on the computer monitor (top left corner of screen)
-    const termX = 295;
+    const termX = 310;
     const termY = 210;
 
     // Green terminal text
@@ -1131,9 +1131,14 @@ function renderIntro() {
 }
 
 function renderScroll() {
-    // Continuous auto-scroll (Star Wars style)
+    // Continuous auto-scroll with variable speed
     if (autoScrolling && scrollOffset < totalScrollHeight) {
-        scrollOffset += scrollSpeed;
+        // Slow down during story panels (GIF sections)
+        let currentSpeed = scrollSpeed;
+        if (scrollOffset >= storyPanel1Y - 100 && scrollOffset < bottomBgY) {
+            currentSpeed = scrollSpeed * 0.5;  // Half speed during story panels
+        }
+        scrollOffset += currentSpeed;
     }
 
     // Draw the scrolling backgrounds and story panels
