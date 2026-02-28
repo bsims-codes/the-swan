@@ -813,8 +813,9 @@ let smokeMonsterVX = 0;
 let smokeMonsterVY = 0;
 let smokeMonsterAlpha = 0;
 let smokeMonsterTimer = 0;
-let smokeMonsterDelay = 500; // Short delay before appearing
+let smokeMonsterDelay = 500;
 let lastSmokeMonsterTime = 0;
+let smokeMonsterDone = false;  // Only appear once
 
 function initSmokeMonster() {
     smokeParticles = [];
@@ -825,9 +826,11 @@ function initSmokeMonster() {
     smokeMonsterTimer = performance.now();
     smokeMonsterDelay = 500;
     lastSmokeMonsterTime = performance.now();
+    smokeMonsterDone = false;  // Reset for new game
 }
 
 function startSmokeMonster() {
+    if (smokeMonsterDone) return;  // Only appear once
     // Immediately activate the smoke monster
     smokeParticles = [];
     smokeMonsterActive = true;
@@ -835,10 +838,9 @@ function startSmokeMonster() {
     smokeMonsterY = 100 + Math.random() * 80;  // Position above trees
     smokeMonsterVX = 100 + Math.random() * 50;
     smokeMonsterVY = (Math.random() - 0.5) * 15;
-    smokeMonsterAlpha = 0.5;  // Start partially visible
+    smokeMonsterAlpha = 0.3;  // Start more transparent
     lastSmokeMonsterTime = performance.now();
     smokeMonsterTimer = performance.now();
-    smokeMonsterDelay = 2000;  // Delay before next appearance
 }
 
 function updateSmokeMonster() {
@@ -866,14 +868,14 @@ function updateSmokeMonster() {
     // Wavy vertical movement
     smokeMonsterY += Math.sin(now / 150) * 1.5;
 
-    // Fade in quickly, stay visible, fade out at end
+    // Fade in, stay visible, fade out at end (more transparent)
     if (smokeMonsterX < CANVAS_WIDTH * 0.2) {
-        smokeMonsterAlpha = Math.min(1, smokeMonsterAlpha + dt * 2);
+        smokeMonsterAlpha = Math.min(0.6, smokeMonsterAlpha + dt * 1.5);
     } else if (smokeMonsterX > CANVAS_WIDTH * 0.75) {
         smokeMonsterAlpha = Math.max(0, smokeMonsterAlpha - dt * 1.5);
     }
 
-    // Spawn many dark trail particles
+    // Spawn dark trail particles (more transparent)
     for (let i = 0; i < 8; i++) {
         smokeParticles.push({
             x: smokeMonsterX + Math.random() * 100 - 50,
@@ -881,7 +883,7 @@ function updateSmokeMonster() {
             vx: -40 - Math.random() * 60,
             vy: (Math.random() - 0.5) * 30,
             size: 30 + Math.random() * 70,
-            alpha: smokeMonsterAlpha * (0.5 + Math.random() * 0.5),
+            alpha: smokeMonsterAlpha * (0.3 + Math.random() * 0.3),
             decay: 0.2 + Math.random() * 0.2
         });
     }
@@ -899,28 +901,28 @@ function updateSmokeMonster() {
         }
     }
 
-    // Reset when off screen
+    // Mark as done when off screen (only appears once)
     if (smokeMonsterX > CANVAS_WIDTH + 300) {
         smokeMonsterActive = false;
-        smokeMonsterTimer = now;
-        smokeMonsterDelay = 2000 + Math.random() * 2000;
+        smokeMonsterDone = true;  // Don't appear again
         smokeParticles = [];
     }
 }
 
 function renderSmokeMonster() {
+    if (smokeMonsterDone && smokeParticles.length === 0) return;
     if (!smokeMonsterActive && smokeParticles.length === 0) return;
 
     updateSmokeMonster();
 
     ctx.save();
 
-    // Draw dark trail particles
+    // Draw dark trail particles (more transparent)
     for (const p of smokeParticles) {
         const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
-        gradient.addColorStop(0, `rgba(0, 0, 0, ${p.alpha})`);
-        gradient.addColorStop(0.3, `rgba(5, 5, 10, ${p.alpha * 0.8})`);
-        gradient.addColorStop(0.6, `rgba(10, 10, 15, ${p.alpha * 0.4})`);
+        gradient.addColorStop(0, `rgba(0, 0, 0, ${p.alpha * 0.7})`);
+        gradient.addColorStop(0.3, `rgba(5, 5, 10, ${p.alpha * 0.5})`);
+        gradient.addColorStop(0.6, `rgba(10, 10, 15, ${p.alpha * 0.25})`);
         gradient.addColorStop(1, `rgba(15, 15, 20, 0)`);
 
         ctx.fillStyle = gradient;
@@ -929,16 +931,16 @@ function renderSmokeMonster() {
         ctx.fill();
     }
 
-    // Draw main smoke body - large dark mass
+    // Draw main smoke body - more transparent
     if (smokeMonsterActive && smokeMonsterAlpha > 0) {
-        // Core - very dark
+        // Core
         const coreGradient = ctx.createRadialGradient(
             smokeMonsterX, smokeMonsterY, 0,
             smokeMonsterX, smokeMonsterY, 120
         );
-        coreGradient.addColorStop(0, `rgba(0, 0, 0, ${smokeMonsterAlpha})`);
-        coreGradient.addColorStop(0.4, `rgba(5, 5, 8, ${smokeMonsterAlpha * 0.9})`);
-        coreGradient.addColorStop(0.7, `rgba(10, 10, 15, ${smokeMonsterAlpha * 0.5})`);
+        coreGradient.addColorStop(0, `rgba(0, 0, 0, ${smokeMonsterAlpha * 0.7})`);
+        coreGradient.addColorStop(0.4, `rgba(5, 5, 8, ${smokeMonsterAlpha * 0.5})`);
+        coreGradient.addColorStop(0.7, `rgba(10, 10, 15, ${smokeMonsterAlpha * 0.3})`);
         coreGradient.addColorStop(1, `rgba(15, 15, 20, 0)`);
 
         ctx.fillStyle = coreGradient;
@@ -946,13 +948,13 @@ function renderSmokeMonster() {
         ctx.arc(smokeMonsterX, smokeMonsterY, 120, 0, Math.PI * 2);
         ctx.fill();
 
-        // Secondary mass for more volume
+        // Secondary mass
         const secondGradient = ctx.createRadialGradient(
             smokeMonsterX - 40, smokeMonsterY + 20, 0,
             smokeMonsterX - 40, smokeMonsterY + 20, 80
         );
-        secondGradient.addColorStop(0, `rgba(0, 0, 0, ${smokeMonsterAlpha * 0.8})`);
-        secondGradient.addColorStop(0.5, `rgba(8, 8, 12, ${smokeMonsterAlpha * 0.5})`);
+        secondGradient.addColorStop(0, `rgba(0, 0, 0, ${smokeMonsterAlpha * 0.5})`);
+        secondGradient.addColorStop(0.5, `rgba(8, 8, 12, ${smokeMonsterAlpha * 0.3})`);
         secondGradient.addColorStop(1, `rgba(15, 15, 20, 0)`);
 
         ctx.fillStyle = secondGradient;
